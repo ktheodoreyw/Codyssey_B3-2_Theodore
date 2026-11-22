@@ -18,7 +18,7 @@ AI 결과물의 품질은 '무엇을 어떻게 입력하느냐'로 결정된다.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from . import config
 from .safe_mode import PreparedFile, SafeModeReport, mask_text
@@ -283,9 +283,18 @@ _SYSTEM_PROMPTS = {"commit": COMMIT_SYSTEM_PROMPT, "pr": PR_SYSTEM_PROMPT, "all"
 _SCHEMAS = {"commit": COMMIT_SCHEMA, "pr": PR_SCHEMA, "all": ALL_SCHEMA}
 
 
-def system_prompt_for(kind: str) -> str:
+def system_prompt_for(kind: str, convention: Any = None) -> str:
+    """기본 컨벤션이면 위의 고정 프롬프트, 팀 컨벤션이면 그 컨벤션으로 만든 프롬프트(템플릿 교체)."""
+    if convention is not None and not convention.is_default:
+        from .convention import system_prompt
+
+        return system_prompt(kind, convention)
     return _SYSTEM_PROMPTS[kind]
 
 
-def schema_for(kind: str) -> dict:
+def schema_for(kind: str, convention: Any = None) -> dict:
+    if convention is not None and not convention.is_default:
+        from .convention import schema
+
+        return schema(kind, convention)
     return _SCHEMAS[kind]
