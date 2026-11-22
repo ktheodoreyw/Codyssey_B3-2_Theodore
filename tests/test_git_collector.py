@@ -67,10 +67,12 @@ def _git(cwd: str, *args: str) -> str:
     proc = subprocess.run(
         ["git", *args],
         cwd=cwd,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf-8",
         errors="replace",
+        timeout=120,  # 환경 문제로 git 이 멈춰도 테스트가 무한 대기하지 않도록
     )
     if proc.returncode != 0:
         raise AssertionError(f"git {' '.join(args)} failed in {cwd}: {proc.stderr.strip()}")

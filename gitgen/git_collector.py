@@ -19,6 +19,8 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
+from . import config
+
 # 내용을 보낼 가치가 낮은(대부분 자동 생성되는) 파일. diff 본문은 생략하고 통계만 남긴다.
 LOCKFILE_NAMES = {
     "package-lock.json",
@@ -155,9 +157,21 @@ def run_git(args: Sequence[str], cwd: Optional[str] = None) -> str:
     """
     cmd = ["git", "-c", "core.quotepath=false", *args]
     try:
-        proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.run(
+            cmd,
+            cwd=cwd,
+            stdin=subprocess.DEVNULL,  # git 이 입력을 기다리며 멈추지 않도록
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=config.GIT_TIMEOUT,
+        )
     except FileNotFoundError as exc:
         raise GitError("git 명령을 찾을 수 없습니다. Git 이 설치되어 있고 PATH 에 등록되어 있는지 확인하세요.") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise GitError(
+            f"`git {' '.join(args)}` 이(가) {config.GIT_TIMEOUT:.0f}초 안에 끝나지 않았습니다. "
+            "저장소가 매우 크거나 다른 git 작업(잠금)이 진행 중인지 확인하세요."
+        ) from exc
     if proc.returncode != 0:
         detail = decode_git_output(proc.stderr or proc.stdout).strip()
         raise GitError(f"`git {' '.join(args)}` 실행 실패: {detail}")

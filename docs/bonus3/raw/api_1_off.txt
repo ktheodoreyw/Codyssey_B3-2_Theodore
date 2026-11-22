@@ -1,0 +1,45 @@
+$ python main.py commit --no-safe-mode
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 현재 브랜치: main
+[INFO] Git status 수집 완료: 10개 파일 변경 감지 (staged 10, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 335줄, 10개 파일 (+273/-4) - 스테이징된 변경 (git diff --cached)
+[WARN] safe-mode 가 꺼져 있습니다. diff 가 마스킹 없이 외부 AI API 로 전송됩니다.
+[INFO] 전송 diff: 335줄 / 원본 335줄
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 8,824 / 출력 306 | 8.5초 | 예상 비용 $0.0518
+[DONE] 커밋 메시지 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : main
+비교 대상 : 스테이징된 변경 (git diff --cached)
+변경 파일 : 10개 (+273 / -4)
+  A  .env  (+1/-0)
+  M  app/config.py  (+7/-2)
+  M  app/orders.py  (+11/-2)
+  A  app/services/service_01.py  (+42/-0)
+  A  app/services/service_02.py  (+42/-0)
+  A  app/services/service_03.py  (+42/-0)
+  A  app/services/service_04.py  (+42/-0)
+  A  app/services/service_05.py  (+42/-0)
+  A  app/services/service_06.py  (+42/-0)
+  A  db/seed_customers.sql  (+2/-0)
+AI 요약   : 주문 처리 서비스 모듈 6개와 결제 연동 로직을 추가하고, 설정값 및 시드 데이터를 변경했다. 주의: config.py, orders.py, .env, seed_customers.sql 에 민감정보(API 키, DB 접속 정보, 인증 토큰, 주민등록번호 등)가 하드코딩되어 커밋되고 있으므로 반드시 제거해야 한다.
+
+--- Commit Message ---
+feat(orders): 주문 처리 서비스 모듈 및 결제 연동 추가
+
+- app/services/service_01~06.py: 주문 처리 단계별 서비스 모듈 6개 추가
+- app/orders.py: create_order에 user 파라미터·금액 검증·결제 헤더 추가
+- app/config.py: DEBUG·TIMEOUT 값 변경 및 외부 연동 설정 추가 (민감정보 하드코딩 주의)
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] 커밋 제목 37자 (권장 50자 이내)
+[OK] 제목 형식 'type(scope): subject' 준수
+[OK] 본문 핵심 변경 불릿 3개
+[OK] 변경 파일 언급 2개 (config.py, orders.py)
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.

@@ -1,0 +1,224 @@
+--- safe-mode OFF
++++ ON 기본 정책
+@@ -7,24 +7,17 @@
+ 
+ <changed_files count="10" additions="273" deletions="4">
+-- [추가] .env (+1/-0)
++- [추가] .env (+1/-0)  ※ 민감 파일로 판단되어 내용 제외(safe-mode)
+ - [수정] app/config.py (+7/-2)
+ - [수정] app/orders.py (+11/-2)
+-- [추가] app/services/service_01.py (+42/-0)
+-- [추가] app/services/service_02.py (+42/-0)
+-- [추가] app/services/service_03.py (+42/-0)
+-- [추가] app/services/service_04.py (+42/-0)
+-- [추가] app/services/service_05.py (+42/-0)
+-- [추가] app/services/service_06.py (+42/-0)
++- [추가] app/services/service_01.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
++- [추가] app/services/service_02.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
++- [추가] app/services/service_03.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
++- [추가] app/services/service_04.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
++- [추가] app/services/service_05.py (+42/-0)  ※ diff 48줄 중 26줄만 전송
++- [추가] app/services/service_06.py (+42/-0)  ※ diff 48줄 중 26줄만 전송
+ - [추가] db/seed_customers.sql (+2/-0)
+ </changed_files>
+ 
+ <diff>
+-diff --git a/.env b/.env
+-new file mode 100644
+-index 0000000..a796e51
+---- /dev/null
+-+++ b/.env
+-@@ -0,0 +1 @@
+-+DB_PASSWORD=env-only-pass-1234
+ diff --git a/app/config.py b/app/config.py
+ index 0c71d34..88def22 100644
+@@ -36,8 +29,8 @@
+ +DEBUG = False
+ +TIMEOUT = 30
+-+ANTHROPIC_API_KEY = "sk-ant-api03-FAKE0000example0000key"
+-+DATABASE_URL = "postgres://shop_admin:Sh0pPassw0rd!@db1.corp.example.com:5432/shop"
+-+ADMIN_EMAIL = "kim.admin@corp.example.com"
+-+SUPPORT_PHONE = "010-1234-5678"
+++ANTHROPIC_API_KEY = "[MASKED:API_KEY]"
+++DATABASE_URL = "postgres://[MASKED:CREDENTIAL]@db1.corp.example.com:5432/shop"
+++ADMIN_EMAIL = "[MASKED:EMAIL]"
+++SUPPORT_PHONE = "[MASKED:PHONE]"
+ +LICENSE_SERIAL = "SHOP-7F3K-92QX-11ZD"
+ diff --git a/app/orders.py b/app/orders.py
+@@ -86,25 +79,5 @@
+ +    order['step_01_16'] = 16 * 1  # 처리 16
+ +    order['step_01_17'] = 17 * 1  # 처리 17
+-+    order['step_01_18'] = 18 * 1  # 처리 18
+-+    order['step_01_19'] = 19 * 1  # 처리 19
+-+    order['step_01_20'] = 20 * 1  # 처리 20
+-+    order['step_01_21'] = 21 * 1  # 처리 21
+-+    order['step_01_22'] = 22 * 1  # 처리 22
+-+    order['step_01_23'] = 23 * 1  # 처리 23
+-+    order['step_01_24'] = 24 * 1  # 처리 24
+-+    order['step_01_25'] = 25 * 1  # 처리 25
+-+    order['step_01_26'] = 26 * 1  # 처리 26
+-+    order['step_01_27'] = 27 * 1  # 처리 27
+-+    order['step_01_28'] = 28 * 1  # 처리 28
+-+    order['step_01_29'] = 29 * 1  # 처리 29
+-+    order['step_01_30'] = 30 * 1  # 처리 30
+-+    order['step_01_31'] = 31 * 1  # 처리 31
+-+    order['step_01_32'] = 32 * 1  # 처리 32
+-+    order['step_01_33'] = 33 * 1  # 처리 33
+-+    order['step_01_34'] = 34 * 1  # 처리 34
+-+    order['step_01_35'] = 35 * 1  # 처리 35
+-+    order['step_01_36'] = 36 * 1  # 처리 36
+-+    order['step_01_37'] = 37 * 1  # 처리 37
+-+    return order
++... (이하 21줄 생략)
+ diff --git a/app/services/service_02.py b/app/services/service_02.py
+ new file mode 100644
+@@ -134,25 +107,5 @@
+ +    order['step_02_16'] = 16 * 2  # 처리 16
+ +    order['step_02_17'] = 17 * 2  # 처리 17
+-+    order['step_02_18'] = 18 * 2  # 처리 18
+-+    order['step_02_19'] = 19 * 2  # 처리 19
+-+    order['step_02_20'] = 20 * 2  # 처리 20
+-+    order['step_02_21'] = 21 * 2  # 처리 21
+-+    order['step_02_22'] = 22 * 2  # 처리 22
+-+    order['step_02_23'] = 23 * 2  # 처리 23
+-+    order['step_02_24'] = 24 * 2  # 처리 24
+-+    order['step_02_25'] = 25 * 2  # 처리 25
+-+    order['step_02_26'] = 26 * 2  # 처리 26
+-+    order['step_02_27'] = 27 * 2  # 처리 27
+-+    order['step_02_28'] = 28 * 2  # 처리 28
+-+    order['step_02_29'] = 29 * 2  # 처리 29
+-+    order['step_02_30'] = 30 * 2  # 처리 30
+-+    order['step_02_31'] = 31 * 2  # 처리 31
+-+    order['step_02_32'] = 32 * 2  # 처리 32
+-+    order['step_02_33'] = 33 * 2  # 처리 33
+-+    order['step_02_34'] = 34 * 2  # 처리 34
+-+    order['step_02_35'] = 35 * 2  # 처리 35
+-+    order['step_02_36'] = 36 * 2  # 처리 36
+-+    order['step_02_37'] = 37 * 2  # 처리 37
+-+    return order
++... (이하 21줄 생략)
+ diff --git a/app/services/service_03.py b/app/services/service_03.py
+ new file mode 100644
+@@ -182,25 +135,5 @@
+ +    order['step_03_16'] = 16 * 3  # 처리 16
+ +    order['step_03_17'] = 17 * 3  # 처리 17
+-+    order['step_03_18'] = 18 * 3  # 처리 18
+-+    order['step_03_19'] = 19 * 3  # 처리 19
+-+    order['step_03_20'] = 20 * 3  # 처리 20
+-+    order['step_03_21'] = 21 * 3  # 처리 21
+-+    order['step_03_22'] = 22 * 3  # 처리 22
+-+    order['step_03_23'] = 23 * 3  # 처리 23
+-+    order['step_03_24'] = 24 * 3  # 처리 24
+-+    order['step_03_25'] = 25 * 3  # 처리 25
+-+    order['step_03_26'] = 26 * 3  # 처리 26
+-+    order['step_03_27'] = 27 * 3  # 처리 27
+-+    order['step_03_28'] = 28 * 3  # 처리 28
+-+    order['step_03_29'] = 29 * 3  # 처리 29
+-+    order['step_03_30'] = 30 * 3  # 처리 30
+-+    order['step_03_31'] = 31 * 3  # 처리 31
+-+    order['step_03_32'] = 32 * 3  # 처리 32
+-+    order['step_03_33'] = 33 * 3  # 처리 33
+-+    order['step_03_34'] = 34 * 3  # 처리 34
+-+    order['step_03_35'] = 35 * 3  # 처리 35
+-+    order['step_03_36'] = 36 * 3  # 처리 36
+-+    order['step_03_37'] = 37 * 3  # 처리 37
+-+    return order
++... (이하 21줄 생략)
+ diff --git a/app/services/service_04.py b/app/services/service_04.py
+ new file mode 100644
+@@ -230,25 +163,5 @@
+ +    order['step_04_16'] = 16 * 4  # 처리 16
+ +    order['step_04_17'] = 17 * 4  # 처리 17
+-+    order['step_04_18'] = 18 * 4  # 처리 18
+-+    order['step_04_19'] = 19 * 4  # 처리 19
+-+    order['step_04_20'] = 20 * 4  # 처리 20
+-+    order['step_04_21'] = 21 * 4  # 처리 21
+-+    order['step_04_22'] = 22 * 4  # 처리 22
+-+    order['step_04_23'] = 23 * 4  # 처리 23
+-+    order['step_04_24'] = 24 * 4  # 처리 24
+-+    order['step_04_25'] = 25 * 4  # 처리 25
+-+    order['step_04_26'] = 26 * 4  # 처리 26
+-+    order['step_04_27'] = 27 * 4  # 처리 27
+-+    order['step_04_28'] = 28 * 4  # 처리 28
+-+    order['step_04_29'] = 29 * 4  # 처리 29
+-+    order['step_04_30'] = 30 * 4  # 처리 30
+-+    order['step_04_31'] = 31 * 4  # 처리 31
+-+    order['step_04_32'] = 32 * 4  # 처리 32
+-+    order['step_04_33'] = 33 * 4  # 처리 33
+-+    order['step_04_34'] = 34 * 4  # 처리 34
+-+    order['step_04_35'] = 35 * 4  # 처리 35
+-+    order['step_04_36'] = 36 * 4  # 처리 36
+-+    order['step_04_37'] = 37 * 4  # 처리 37
+-+    return order
++... (이하 21줄 생략)
+ diff --git a/app/services/service_05.py b/app/services/service_05.py
+ new file mode 100644
+@@ -277,26 +190,5 @@
+ +    order['step_05_15'] = 15 * 5  # 처리 15
+ +    order['step_05_16'] = 16 * 5  # 처리 16
+-+    order['step_05_17'] = 17 * 5  # 처리 17
+-+    order['step_05_18'] = 18 * 5  # 처리 18
+-+    order['step_05_19'] = 19 * 5  # 처리 19
+-+    order['step_05_20'] = 20 * 5  # 처리 20
+-+    order['step_05_21'] = 21 * 5  # 처리 21
+-+    order['step_05_22'] = 22 * 5  # 처리 22
+-+    order['step_05_23'] = 23 * 5  # 처리 23
+-+    order['step_05_24'] = 24 * 5  # 처리 24
+-+    order['step_05_25'] = 25 * 5  # 처리 25
+-+    order['step_05_26'] = 26 * 5  # 처리 26
+-+    order['step_05_27'] = 27 * 5  # 처리 27
+-+    order['step_05_28'] = 28 * 5  # 처리 28
+-+    order['step_05_29'] = 29 * 5  # 처리 29
+-+    order['step_05_30'] = 30 * 5  # 처리 30
+-+    order['step_05_31'] = 31 * 5  # 처리 31
+-+    order['step_05_32'] = 32 * 5  # 처리 32
+-+    order['step_05_33'] = 33 * 5  # 처리 33
+-+    order['step_05_34'] = 34 * 5  # 처리 34
+-+    order['step_05_35'] = 35 * 5  # 처리 35
+-+    order['step_05_36'] = 36 * 5  # 처리 36
+-+    order['step_05_37'] = 37 * 5  # 처리 37
+-+    return order
++... (이하 22줄 생략)
+ diff --git a/app/services/service_06.py b/app/services/service_06.py
+ new file mode 100644
+@@ -325,26 +217,5 @@
+ +    order['step_06_15'] = 15 * 6  # 처리 15
+ +    order['step_06_16'] = 16 * 6  # 처리 16
+-+    order['step_06_17'] = 17 * 6  # 처리 17
+-+    order['step_06_18'] = 18 * 6  # 처리 18
+-+    order['step_06_19'] = 19 * 6  # 처리 19
+-+    order['step_06_20'] = 20 * 6  # 처리 20
+-+    order['step_06_21'] = 21 * 6  # 처리 21
+-+    order['step_06_22'] = 22 * 6  # 처리 22
+-+    order['step_06_23'] = 23 * 6  # 처리 23
+-+    order['step_06_24'] = 24 * 6  # 처리 24
+-+    order['step_06_25'] = 25 * 6  # 처리 25
+-+    order['step_06_26'] = 26 * 6  # 처리 26
+-+    order['step_06_27'] = 27 * 6  # 처리 27
+-+    order['step_06_28'] = 28 * 6  # 처리 28
+-+    order['step_06_29'] = 29 * 6  # 처리 29
+-+    order['step_06_30'] = 30 * 6  # 처리 30
+-+    order['step_06_31'] = 31 * 6  # 처리 31
+-+    order['step_06_32'] = 32 * 6  # 처리 32
+-+    order['step_06_33'] = 33 * 6  # 처리 33
+-+    order['step_06_34'] = 34 * 6  # 처리 34
+-+    order['step_06_35'] = 35 * 6  # 처리 35
+-+    order['step_06_36'] = 36 * 6  # 처리 36
+-+    order['step_06_37'] = 37 * 6  # 처리 37
+-+    return order
++... (이하 22줄 생략)
+ diff --git a/db/seed_customers.sql b/db/seed_customers.sql
+ new file mode 100644
+@@ -353,5 +224,10 @@
+ +++ b/db/seed_customers.sql
+ @@ -0,0 +1,2 @@
+-+INSERT INTO customers (name, rrn, phone) VALUES ('홍길동', '900101-1234567', '010-9876-5432');
+-+INSERT INTO customers (name, rrn, phone) VALUES ('김철수', '850505-2345678', '010-1111-2222');
+++INSERT INTO customers (name, rrn, phone) VALUES ('홍길동', '[MASKED:RRN]', '[MASKED:PHONE]');
+++INSERT INTO customers (name, rrn, phone) VALUES ('김철수', '[MASKED:RRN]', '[MASKED:PHONE]');
+ </diff>
++
++<notes>
++- 민감정보로 의심되는 값 8건이 [MASKED:종류] 로 가려져 있다.
++- 일부 파일의 diff 는 전송 제한으로 생략/축소되었다. 생략된 파일은 <changed_files> 의 이름과 통계로 변경 성격을 추정한다.
++</notes>

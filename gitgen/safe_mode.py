@@ -3,9 +3,12 @@
 과제 요구(보안/민감정보)의 두 방식을 모두 적용한다.
 
 (A) 마스킹  : API Key, 토큰, 비밀번호, 이메일, 전화번호 등 민감정보 패턴을 [MASKED:종류] 로 치환
-(B) 전송 제한: 최대 10개 파일, 최대 200줄까지만 전송 (config.SAFE_MAX_FILES / SAFE_MAX_LINES)
+(B) 전송 제한: 기본 최대 10개 파일, 최대 200줄까지만 전송 (config.SAFE_MAX_FILES / SAFE_MAX_LINES)
 
 추가로 .env, *.pem 같은 '민감 파일'은 내용 자체를 보내지 않고 파일명과 통계만 남긴다.
+
+마스킹 규칙 추가(정규식), 전송 제한 숫자 조정, 제외 파일 추가는 safe-mode 정책(safe_policy.py)으로
+바꿀 수 있다. 정책을 넘기지 않으면 위 기본값으로 동작한다.
 
 safe-mode 를 끄면(--no-safe-mode) 마스킹/제외/파일·줄 제한을 하지 않는다.
 단, 비용 폭주를 막기 위한 문자 수 하드 상한(config.HARD_MAX_CHARS)은 항상 적용한다.
@@ -203,10 +206,14 @@ MASK_RULES: List[MaskRule] = [
 ]
 
 
-def mask_text(text: str) -> Tuple[str, Dict[str, int]]:
-    """민감정보 패턴을 치환하고 (치환된 텍스트, 규칙별 치환 건수)를 돌려준다."""
+def mask_text(text: str, policy: Any = None) -> Tuple[str, Dict[str, int]]:
+    """민감정보 패턴을 치환하고 (치환된 텍스트, 규칙별 치환 건수)를 돌려준다.
+
+    policy(SafeModePolicy)를 주면 사용자 규칙 → 내장 규칙(비활성 제외) 순서로 적용한다.
+    """
     counts: Dict[str, int] = {}
-    for rule in MASK_RULES:
+    rules = policy.mask_rules if policy is not None else MASK_RULES
+    for rule in rules:
         hits = 0
 
         def _repl(m: "re.Match[str]", _rule: MaskRule = rule) -> str:
@@ -298,12 +305,14 @@ class PreparedFile:
 class SafeModeReport:
     enabled: bool
     masked: Dict[str, int] = field(default_factory=dict)
-    excluded_sensitive: List[str] = field(default_factory=list)
+    excluded_sensitive: List[str] = field(default_factory=list)  # 내장 민감 파일 패턴으로 제외
+    excluded_by_policy: List[str] = field(default_factory=list)  # 사용자 정책(exclude_files)으로 제외
     skipped_over_file_limit: List[str] = field(default_factory=list)
     truncated: List[str] = field(default_factory=list)
     original_lines: int = 0
     sent_lines: int = 0
     hard_limited: bool = False
+    policy: Any = None  # 적용한 SafeModePolicy (safe-mode OFF 면 None)
 
     @property
     def masked_total(self) -> int:
@@ -313,9 +322,18 @@ class SafeModeReport:
 # ---------------------------------------------------------------------------
 # 전체 처리
 # ---------------------------------------------------------------------------
-def prepare_files(files: List[FileDiff], safe_mode: bool) -> Tuple[List[PreparedFile], SafeModeReport]:
-    """FileDiff 목록을 전송용 PreparedFile 목록으로 바꾼다."""
-    report = SafeModeReport(enabled=safe_mode)
+def prepare_files(
+    files: List[FileDiff], safe_mode: bool, policy: Any = None
+) -> Tuple[List[PreparedFile], SafeModeReport]:
+    """FileDiff 목록을 전송용 PreparedFile 목록으로 바꾼다.
+
+    policy(SafeModePolicy)가 없으면 기본 정책(10개 파일, 200줄, 내장 규칙)을 쓴다.
+    """
+    if policy is None:
+        from .safe_policy import default_policy  # 순환 import 방지
+
+        policy = default_policy()
+    report = SafeModeReport(enabled=safe_mode, policy=policy if safe_mode else None)
     report.original_lines = sum(len(f.lines) for f in files)
 
     prepared: List[PreparedFile] = []
@@ -335,28 +353,40 @@ def prepare_files(files: List[FileDiff], safe_mode: bool) -> Tuple[List[Prepared
             pf.note = "민감 파일로 판단되어 내용 제외(safe-mode)"
             report.excluded_sensitive.append(f.path)
             continue
+        if safe_mode and (policy.is_excluded(f.path) or (f.old_path and policy.is_excluded(f.old_path))):
+            pf.note = "사용자 정책(exclude_files)으로 내용 제외(safe-mode)"
+            report.excluded_by_policy.append(f.path)
+            continue
+        if safe_mode and policy.is_policy_file(f.path):
+            # 정책 파일의 정규식 원문에는 가리려는 값(사내 도메인, 코드명 등)이 그대로 들어 있다.
+            pf.note = "safe-mode 정책 파일: 내용 제외(safe-mode)"
+            report.excluded_by_policy.append(f.path)
+            continue
 
         body = "\n".join(f.lines)
         if safe_mode:
-            body, counts = mask_text(body)
+            body, counts = mask_text(body, policy)
             for name, n in counts.items():
                 report.masked[name] = report.masked.get(name, 0) + n
         candidates.append((pf, body.split("\n")))
 
     if safe_mode:
         # (B-1) 파일 수 제한
-        over = candidates[config.SAFE_MAX_FILES:]
-        candidates = candidates[: config.SAFE_MAX_FILES]
+        over = candidates[policy.max_files:]
+        candidates = candidates[: policy.max_files]
         for pf, _ in over:
-            pf.note = f"파일 수 제한({config.SAFE_MAX_FILES}개) 초과: 내용 생략(safe-mode)"
+            pf.note = f"파일 수 제한({policy.max_files}개) 초과: 내용 생략(safe-mode)"
             report.skipped_over_file_limit.append(pf.source.path)
-        # (B-2) 줄 수 제한: 파일마다 공평하게 줄 예산을 나눈다.
-        budgets = allocate_line_budget([len(lines) for _, lines in candidates], config.SAFE_MAX_LINES)
+        # (B-2) 줄 수 제한: 파일당 상한을 먼저 적용하고, 전체 예산을 파일마다 공평하게 나눈다.
+        sizes = [len(lines) for _, lines in candidates]
+        if policy.max_lines_per_file:
+            sizes = [min(size, policy.max_lines_per_file) for size in sizes]
+        budgets = allocate_line_budget(sizes, policy.max_lines)
     else:
         budgets = [len(lines) for _, lines in candidates]
 
     for (pf, lines), budget in zip(candidates, budgets):
-        _fill(pf, lines, budget, report)
+        _fill(pf, lines, budget, report, policy.max_lines)
 
     # 하드 상한(문자 수): safe-mode 여부와 무관하게 비용 보호용으로 적용
     _apply_hard_char_limit(prepared, report)
@@ -397,9 +427,9 @@ def allocate_line_budget(sizes: List[int], total: int) -> List[int]:
     return budgets
 
 
-def _fill(pf: PreparedFile, lines: List[str], budget: int, report: SafeModeReport) -> None:
+def _fill(pf: PreparedFile, lines: List[str], budget: int, report: SafeModeReport, max_lines: int) -> None:
     if budget <= 0:
-        pf.note = pf.note or f"줄 수 제한({config.SAFE_MAX_LINES}줄)으로 내용 생략(safe-mode)"
+        pf.note = pf.note or f"줄 수 제한({max_lines}줄)으로 내용 생략(safe-mode)"
         report.truncated.append(pf.source.path)
         return
     if budget >= len(lines):
@@ -439,25 +469,25 @@ def _apply_hard_char_limit(prepared: List[PreparedFile], report: SafeModeReport)
         used = limit
 
 
-def mask_output(text: str) -> Tuple[str, int]:
+def mask_output(text: str, policy: Any = None) -> Tuple[str, int]:
     """AI 가 생성한 결과에 혹시라도 민감정보가 섞여 나오면 한 번 더 가린다."""
-    masked, counts = mask_text(text)
+    masked, counts = mask_text(text, policy)
     return masked, sum(counts.values())
 
 
-def mask_data(data: Any) -> Tuple[Any, int]:
+def mask_data(data: Any, policy: Any = None) -> Tuple[Any, int]:
     """AI 응답 JSON 의 문자열 값(제목, 불릿 하나하나)을 각각 마스킹한다.
 
     완성된 텍스트가 아니라 '필드 단위'로 가리기 때문에, 이후의 길이 검증·자르기가
     마스킹된 최종 문자열을 기준으로 동작하고, 한 불릿의 치환이 다른 섹션을 망가뜨리지 않는다.
     """
     if isinstance(data, str):
-        return mask_output(data)
+        return mask_output(data, policy)
     if isinstance(data, list):
         total = 0
         items = []
         for item in data:
-            masked, n = mask_data(item)
+            masked, n = mask_data(item, policy)
             items.append(masked)
             total += n
         return items, total
@@ -465,7 +495,7 @@ def mask_data(data: Any) -> Tuple[Any, int]:
         total = 0
         result = {}
         for key, value in data.items():
-            result[key], n = mask_data(value)
+            result[key], n = mask_data(value, policy)
             total += n
         return result, total
     return data, 0
