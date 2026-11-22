@@ -1,0 +1,58 @@
+{
+  "convention": {
+    "name": "B2-2 팀 컨벤션",
+    "description": "On-Premise-Sky/B2-2 의 CONTRIBUTING, PR 템플릿, 실제 커밋 64개·PR 25개를 분석해 정의",
+    "commit": {
+      "format": "{type}: {subject}",
+      "types": {
+        "feat": "새 기능 / 결과물 추가",
+        "fix": "오류 수정",
+        "docs": "문서 추가·수정",
+        "refactor": "동작 변화 없는 구조 개선",
+        "chore": "설정, 폴더 구조 등 기타"
+      },
+      "scope": "none",
+      "subject_max": 50,
+      "subject_guide": "무엇을 바꿨는지 대상이 드러나게 한글로 쓰고, '~ 추가', '~ 수정', '~ 분리', '~ 명시'처럼 명사형으로 끝내며 마침표를 찍지 않는다",
+      "forbidden": ["update", "fix", "temp", "wip", "final", "bug fix", "edit file"],
+      "body": "prose",
+      "body_max": 3,
+      "body_guide": "무엇을 어떻게 바꿨고 왜 바꿨는지 '~했습니다' 존댓말 평서문으로, 바꾼 파일 경로를 포함해 쓴다",
+      "examples": [
+        "docs: CONTRIBUTING에 리뷰 최소 기준 추가",
+        "feat: 팀원 카드에 GitHub 프로필 링크 추가",
+        "fix: README의 conflict 문서 링크 경로 수정",
+        "refactor: 팀원 데이터를 members.json으로 분리",
+        "chore: 경로별 코드 오너 설정 추가"
+      ]
+    },
+    "pr": {
+      "title_max": 50,
+      "tone": "What 은 '`파일 경로` 변경 내용' 형태의 짧은 항목, Why 는 '~했습니다', '~위해서입니다' 처럼 존댓말 평서문. How 는 '~를 확인합니다' 처럼 쓰고, 실행하지 않은 결과를 '확인했습니다'로 단정하지 않는다",
+      "issue": {"heading": "관련 이슈", "keyword": "Closes"},
+      "sections": [
+        {"key": "what", "heading": "What (무엇을 바꿨나요)", "guide": "변경한 파일과 주요 변경 사항. 파일 경로는 백틱(`)으로 감싼다", "min": 1, "max": 5},
+        {"key": "why", "heading": "Why (왜 바꿨나요)", "guide": "변경이 필요한 이유", "min": 1, "max": 3},
+        {"key": "how", "heading": "How (어떻게 확인했나요)", "guide": "작성자가 수행할 검증 방법과 확인할 결과(실행 명령은 백틱). 실행 후 작성자가 실제 결과로 고친다", "min": 1, "max": 5}
+      ],
+      "checklist": {
+        "heading": "체크리스트",
+        "items": [
+          "커밋 메시지가 컨벤션(`type: 설명`)을 따릅니다",
+          "리뷰어를 지정했습니다",
+          "리뷰 코멘트에 답글 또는 수정으로 응답했습니다"
+        ]
+      },
+      "examples": [
+        {
+          "type": "docs",
+          "subject": "README에 GitHub Pages 배포 주소 추가",
+          "what": ["`README.md` 결과물 섹션에 랜딩 페이지와 개인 사이트 4개의 GitHub Pages 주소 추가", "'배포가 완료되면 주소를 추가한다'는 안내 문장 정리"],
+          "why": ["Pages 설정은 커밋으로 남지 않아 배포 주소와 설정 방법을 기록하기 위해서입니다."],
+          "how": ["배포 후 브라우저로 랜딩 페이지와 `team/<id>/` 4개 주소에 접속되는지 확인합니다."]
+        }
+      ]
+    },
+    "branch_pattern": "^(feature|fix|docs)/[A-Za-z0-9_-]+-[a-z0-9][a-z0-9-]*$"
+  }
+}
