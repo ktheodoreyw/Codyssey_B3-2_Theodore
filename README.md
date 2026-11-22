@@ -19,7 +19,7 @@ API 를 호출하는 데서 끝나지 않고 **입력(프롬프트·컨텍스트
 ## 목차
 
 1. [설치](#1-설치)
-2. [환경변수(API Key) 설정](#2-환경변수api-key-설정)
+2. [환경변수(API Key) 설정 — .env](#2-환경변수api-key-설정)
 3. [사용법](#3-사용법)
 4. [출력 예시](#4-출력-예시)
 5. [민감정보 대응 (safe-mode)](#5-민감정보-대응-safe-mode)
@@ -41,9 +41,12 @@ API 를 호출하는 데서 끝나지 않고 **입력(프롬프트·컨텍스트
 ```bash
 git clone https://github.com/ktheodoreyw/Codyssey_B3-2_Theodore.git ai-gitgen
 cd ai-gitgen
-pip install -r requirements.txt      # 외부 의존성은 requests 하나
+pip install -r requirements.txt      # 외부 의존성: requests(HTTP 호출), python-dotenv(.env 읽기)
+cp .env.example .env                 # API Key 설정 파일 만들기 → 2장 참고
 python main.py --help                # 설치 확인
 ```
+
+> Windows 에서 `python` 명령이 없다고 나오면 `py` 를 사용하세요. (예: `py main.py commit`, `py -m pip install -r requirements.txt`)
 
 가상환경을 쓰려면:
 
@@ -64,7 +67,42 @@ python ~/ai-gitgen/main.py commit
 
 ## 2. 환경변수(API Key) 설정
 
-API Key 는 **환경변수로만** 읽습니다. 코드나 설정 파일에 적지 마세요. `ANTHROPIC_API_KEY` 를 먼저 확인하고, 없으면 `AI_API_KEY` 를 확인합니다.
+API Key 는 코드에 적지 않고 **환경변수로만** 읽습니다(`ANTHROPIC_API_KEY` → 없으면 `AI_API_KEY`). 매번 터미널에서 `export` 하지 않도록, 프로그램이 시작할 때 **`.env` 파일의 값을 환경변수로 불러옵니다.**
+
+```
+ .env (ai-gitgen 폴더, main.py 옆)            환경변수(os.environ)              ai_client.get_api_key()
+ ANTHROPIC_API_KEY=sk-ant-...      ──로드──▶  ANTHROPIC_API_KEY=sk-ant-...  ──▶  x-api-key 헤더로 전송
+```
+
+### 방법 1) `.env` 파일 (권장)
+
+```bash
+cp .env.example .env     # 예시 파일을 복사해 .env 를 만든다
+```
+
+`.env` 를 열어 `YOUR_KEY` 를 실제 키로 바꿉니다. (따옴표는 있어도 되고 없어도 됩니다)
+
+```dotenv
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+실행하면 로그에 **변수 이름만** 표시됩니다(키 값은 출력하지 않음).
+
+```
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+```
+
+| 규칙 | 내용 |
+|---|---|
+| 파일 위치 | ai-gitgen 폴더의 `.env` (main.py 옆). 다른 프로젝트 폴더에서 `python ~/ai-gitgen/main.py commit` 으로 실행해도 이 파일을 읽습니다 |
+| 우선순위 | 이미 설정된 OS 환경변수가 있으면 `.env` 값으로 **덮어쓰지 않습니다** (`이미 설정된 환경변수(...)는 .env 값으로 덮어쓰지 않습니다.` 로그 표시). API Key 는 이름이 달라도 한 묶음으로 봐서, OS 에 `ANTHROPIC_API_KEY` 나 `AI_API_KEY` 중 하나라도 있으면 `.env` 의 API Key 는 쓰지 않습니다. 공백뿐인 OS 값은 설정되지 않은 것으로 봅니다 |
+| Git 관리 | `.gitignore` 의 `.env*` 규칙으로 `.env` 와 그 복사본(`.env.bak`, `.env~`, `.env copy` 등)은 **커밋되지 않습니다**. 저장소에는 예시 파일 `.env.example`(값: `YOUR_KEY`)만 올라갑니다 |
+| 파일 형식 | `KEY=값`, `KEY="값"`, `export KEY=값`, `# 주석` 모두 가능. UTF-8 로 저장 (메모장의 BOM 도 처리) |
+| 예시 값 검사 | `YOUR_KEY` 를 바꾸지 않고 실행하면 API 를 호출하기 전에 알려 줍니다 |
+
+### 방법 2) OS 환경변수 직접 설정
+
+`.env` 대신 터미널/OS 에 직접 설정해도 됩니다. (CI 서버처럼 파일을 둘 수 없는 환경에 적합)
 
 | 터미널 | 현재 터미널에서만 | 영구 설정 |
 |---|---|---|
@@ -72,19 +110,21 @@ API Key 는 **환경변수로만** 읽습니다. 코드나 설정 파일에 적�
 | PowerShell | `$env:ANTHROPIC_API_KEY = "sk-ant-..."` | `[Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "sk-ant-...", "User")` |
 | cmd | `set ANTHROPIC_API_KEY=sk-ant-...` | `setx ANTHROPIC_API_KEY "sk-ant-..."` (새 창부터 적용) |
 
-키가 없을 때:
+### 키가 없거나 잘못됐을 때
 
 ```
 $ python main.py commit
 [ERROR] AI API Key 환경변수가 설정되지 않았습니다. (ANTHROPIC_API_KEY 또는 AI_API_KEY)
-        예) export ANTHROPIC_API_KEY="YOUR_KEY"
+        .env 파일이 없습니다: C:\Users\me\ai-gitgen\.env
+        방법 1) .env 파일(권장): ai-gitgen 폴더(C:\Users\me\ai-gitgen)에서 cp .env.example .env 후 ANTHROPIC_API_KEY=YOUR_KEY 의 YOUR_KEY 를 실제 키로 수정
+        방법 2) 환경변수 직접 설정: export ANTHROPIC_API_KEY="YOUR_KEY"
 ```
 
-PDF·메신저에서 키를 복사하다 공백·줄바꿈·보이지 않는 문자가 섞이면, API 를 호출하기 전에 미리 알려 줍니다(키 값은 출력하지 않음).
+`.env` 는 있지만 키 항목이 없으면 `.env 파일은 찾았지만 API Key 항목이 없습니다`, UTF-8 이 아니라서(예: PowerShell 5.1 의 `>` 로 만든 UTF-16 파일) 읽지 못하면 `.env 파일을 읽지 못했습니다`, 예시 값 그대로면 `API Key 가 아직 예시 값(YOUR_KEY) 그대로입니다` 로 알려 줍니다. PDF·메신저에서 키를 복사하다 공백·줄바꿈·보이지 않는 문자가 섞여도 API 를 호출하기 전에 알려 줍니다(키 값은 출력하지 않음).
 
 ```
 [ERROR] API Key 에 영문/숫자/기호가 아닌 문자(보이지 않는 문자, 전각 하이픈 등)가 섞여 있습니다. (ANTHROPIC_API_KEY 또는 AI_API_KEY)
-        키를 공백/줄바꿈/특수문자 없이 다시 복사해 설정하세요.
+        .env 파일(또는 환경변수)의 키를 공백/줄바꿈/특수문자 없이 다시 복사해 설정하세요.
 ```
 
 ## 3. 사용법
@@ -160,21 +200,21 @@ git commit -e -F commit_msg.txt                  # -e: 커밋 전에 에디터�
 
 ## 4. 출력 예시
 
-아래는 실제 실행 결과입니다. (Windows 11 + Git Bash, `claude-opus-4-6`)
+아래는 실제 실행 결과입니다. (Windows 11 + Git Bash, `claude-opus-4-6`, API Key 는 `.env` 에서 로드)
 
 ### 커밋 메시지 — `python main.py commit`
 
 ```
 $ git add app.py test_app.py
 $ python main.py commit -c "평문 비밀번호 비교를 해시 비교로 바꿔 보안 강화"
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
 [INFO] 현재 브랜치: feature/password-hash
-[INFO] Git status 수집 완료: 3개 파일 변경 감지 (staged 2, unstaged 0, untracked 1)
+[INFO] Git status 수집 완료: 2개 파일 변경 감지 (staged 2, unstaged 0, untracked 0)
 [INFO] Git diff 수집 완료: 42줄, 2개 파일 (+27/-4) - 스테이징된 변경 (git diff --cached)
-[INFO] 스테이징되지 않은 변경/새 파일 1개는 이번 커밋 메시지에서 제외합니다.
 [INFO] safe-mode ON: 마스킹 1건, 전송 diff 42줄 / 원본 42줄
 [INFO] 마스킹 상세: EMAIL 1
 [INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
-[INFO] AI API 호출 횟수: 1회 | 토큰 입력 2,224 / 출력 171 | 4.8초 | 예상 비용 $0.0154
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 2,224 / 출력 171 | 5.7초 | 예상 비용 $0.0154
 [DONE] 커밋 메시지 생성 완료
 
 ======================== 변경 요약 ========================
@@ -204,6 +244,7 @@ feat(auth): 비밀번호 해시 비교 방식으로 로그인 보안 강화
 
 ```
 $ python main.py pr --base main
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
 [INFO] 현재 브랜치: feature/password-hash
 [INFO] Git status 수집 완료: 1개 파일 변경 감지 (staged 0, unstaged 0, untracked 1)
 [INFO] Git diff 수집 완료: 42줄, 2개 파일 (+27/-4) - 'main' 브랜치 대비 커밋된 변경 (git diff main...HEAD)
@@ -251,6 +292,7 @@ feat: 비밀번호 해시 기반 인증으로 전환
 
 ```
 $ python main.py all
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
 ...
 [INFO] AI API 호출 횟수: 1회 | 토큰 입력 2,685 / 출력 211 | 7.4초 | 예상 비용 $0.0187
 [DONE] 커밋 메시지와 PR 초안 생성 완료
@@ -324,7 +366,7 @@ $ python main.py commit
 ```
 [INFO] AI API 호출 횟수: 1회
 [ERROR] AI API 호출 실패 (HTTP 401 authentication_error): invalid x-api-key
-        → 인증에 실패했습니다. API Key 가 올바른지 확인하세요. (환경변수 ANTHROPIC_API_KEY 또는 AI_API_KEY)
+        → 인증에 실패했습니다. API Key 가 올바른지 확인하세요. (.env 파일 또는 환경변수 ANTHROPIC_API_KEY / AI_API_KEY)
         request_id: req_011ChFtgXxyXrX3WqoVXhnx5
 
 [ERROR] AI API 호출 실패 (HTTP 404 not_found_error): model: claude-nope-1
@@ -345,7 +387,7 @@ $ python main.py commit
 
 | 단계 | 정책 | 내용 |
 |---|---|---|
-| ① 민감 파일 제외 | 파일 내용 자체를 보내지 않음 (파일명·통계만 전송) | `.env`, `*.env`, `.env.*`, `.envrc`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*` 등 SSH 키, `credentials`, `credentials*.json`, `service-account*.json`, `*secret*`, `.npmrc`, `.pypirc`, `.netrc`, `.pgpass`, `.git-credentials`, `kubeconfig`, `*.tfstate`, `*.tfvars`, `.aws/*`, `.ssh/*`, `.kube/config`, `.docker/config.json`, `*.ppk`, `*.jks`, `*.keystore`, `*.kdbx` · 이름이 바뀐 경우 **원래 이름**까지 검사 · `*.example`, `*.sample`, `*.template`, `*.dist` 는 제외 대상 아님(내용이 마스킹되어 전송) |
+| ① 민감 파일 제외 | 파일 내용 자체를 보내지 않음 (파일명·통계만 전송) | `.env` 로 시작하는 모든 파일(`.env.local`, `.env~`, `.envrc` 등), `*.env`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*` 등 SSH 키, `credentials`, `credentials*.json`, `service-account*.json`, `*secret*`, `.npmrc`, `.pypirc`, `.netrc`, `.pgpass`, `.git-credentials`, `kubeconfig`, `*.tfstate`, `*.tfvars`, `.aws/*`, `.ssh/*`, `.kube/config`, `.docker/config.json`, `*.ppk`, `*.jks`, `*.keystore`, `*.kdbx` · 이름이 바뀐 경우 **원래 이름**까지 검사 · `*.example`, `*.sample`, `*.template`, `*.dist` 는 제외 대상 아님(내용이 마스킹되어 전송) |
 | ② 패턴 마스킹 | 값을 `[MASKED:종류]` 로 치환 | Anthropic/OpenAI/Stripe/AWS/GitHub/GitLab/HuggingFace/Google/Slack 키·토큰, JWT, `Bearer`/`Basic` 인증, URL 속 계정(`postgres://user:pw@`), URL 쿼리 토큰, 개인 키 블록, 이메일, 주민등록번호, 휴대전화 번호, 카드 번호, `password = "..."`·`DB_PASSWORD=...`·`password: ...` 같은 비밀 값 대입 (코드 참조인 `self.api_key = api_key` 는 유지) |
 | ③ 전송량 제한 | **최대 10개 파일, 최대 200줄** | 줄 예산은 파일마다 공평하게 나눔(작은 파일은 전부, 큰 파일들은 나머지를 똑같이). 생략된 파일도 이름과 `+/-` 통계는 전송 (`<changed_files>` 목록은 최대 50개, 나머지는 `... 외 N개 파일` 합계 한 줄) |
 | 추가 | `--context` 텍스트와 브랜치 이름 | diff 와 같은 규칙으로 마스킹 |
@@ -439,7 +481,7 @@ SDK 없이 `requests` 로 Claude Messages API 를 직접 호출합니다(`gitgen
 
 ```http
 POST https://api.anthropic.com/v1/messages
-x-api-key: <환경변수의 API Key>
+x-api-key: <환경변수의 API Key (.env 에서 불러온 값)>
 anthropic-version: 2023-06-01
 content-type: application/json
 ```
@@ -513,9 +555,11 @@ content-type: application/json
 ```
 ai-gitgen/
 ├── main.py                 # 실행 파일: python main.py commit | pr | all
-├── requirements.txt        # requests
+├── requirements.txt        # requests, python-dotenv
+├── .env.example            # API Key 설정 예시 (복사해서 .env 로 사용, .env 는 커밋 제외)
 ├── gitgen/
 │   ├── cli.py              # 옵션 해석, 전체 흐름 연결, 구획 출력
+│   ├── env_loader.py       # .env 파일 → 환경변수(os.environ) 등록
 │   ├── git_collector.py    # git status / git diff 실행·파싱, 명령별 diff 선택
 │   ├── safe_mode.py        # 민감 파일 제외, 패턴 마스킹, 10개 파일·200줄 제한
 │   ├── prompts.py          # system/user 프롬프트, JSON 스키마
@@ -529,11 +573,13 @@ ai-gitgen/
     ├── test_formatter.py
     ├── test_ai_client.py
     ├── test_cli.py         # 임시 Git 저장소 + API mock 으로 end-to-end
+    ├── test_env_loader.py  # .env 로딩, OS 환경변수 우선순위, 안내 문구
     └── test_review_fixes.py  # 코드 리뷰에서 찾은 문제의 회귀 테스트
 ```
 
 | 단계 | 모듈 | 입력 → 출력 | 테스트 방법 |
 |---|---|---|---|
+| 설정 | `env_loader` | `.env` 파일 → 환경변수 | 임시 `.env` 로 등록·우선순위·BOM·인코딩 오류 확인 |
 | 수집 | `git_collector` | git 출력 텍스트 → `GitStatus`, `FileDiff[]` | 파싱은 순수 함수로 문자열 입력 테스트, 선택 로직은 임시 Git 저장소로 테스트 |
 | 보호 | `safe_mode` | `FileDiff[]` → 전송용 diff + 마스킹 보고서 | 규칙별 샘플, 오탐 사례, 긴 줄 성능 |
 | 호출 | `ai_client` | payload → `AIResponse` / `AIClientError` | `post=` 에 가짜 함수를 넣어 상태 코드·예외·재시도 횟수 검증 |
@@ -546,12 +592,12 @@ ai-gitgen/
 python -m unittest discover -s tests -v
 ```
 
-실제 API 를 호출하지 않으므로 API Key 없이 실행됩니다. 임시 Git 저장소를 만들어 쓰므로 Git 이 설치되어 있어야 합니다(약 40초).
+실제 API 를 호출하지 않으므로 API Key 없이 실행됩니다. 프로젝트의 실제 `.env` 도 읽지 않습니다(테스트용 임시 경로로 바꿔서 실행). 임시 Git 저장소를 만들어 쓰므로 Git 이 설치되어 있어야 합니다(약 40초, Python 3.14 / Windows 11 에서 확인).
 
 ## 13. 주의사항
 
 - **생성된 문구는 초안입니다.** 사실과 다른 내용이 없는지 반드시 검토한 뒤 적용하세요.
 - 이 도구는 초안 출력까지만 합니다. `git commit`, `git push`, GitHub PR 생성은 하지 않습니다.
 - diff 는 외부 API(Anthropic)로 전송됩니다. 회사·개인 정보가 포함된 저장소에서는 safe-mode 를 켠 채로 `--dry-run` 결과를 먼저 확인하세요.
-- API Key 를 코드·README·커밋에 남기지 마세요. 실수로 커밋했다면 즉시 키를 폐기(재발급)하세요.
+- API Key 는 `.env`(커밋 제외) 또는 OS 환경변수에만 두세요. 코드·README·`.env.example` 에 적지 마세요. 커밋 전 `git status` 에 `.env` 가 보이지 않는지 확인하고, 실수로 커밋했다면 즉시 키를 폐기(재발급)하세요.
 - Windows 에서 한글이 깨지면: Git Bash 사용을 권장합니다. PowerShell 에서 결과를 변수/파일로 받을 때 깨진다면 `$env:PYTHONUTF8 = "1"` 과 `[Console]::OutputEncoding = [Text.UTF8Encoding]::new()` 를 함께 설정하세요.
