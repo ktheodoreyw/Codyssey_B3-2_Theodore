@@ -44,7 +44,7 @@ CONNECT_TIMEOUT = 10.0
 # HTTP 상태 코드별 사용자 안내
 STATUS_HINTS = {
     400: "요청 형식이나 파라미터가 올바르지 않습니다. --model / --max-tokens / --effort 값을 확인하세요.",
-    401: "인증에 실패했습니다. API Key 가 올바른지 확인하세요. (환경변수 ANTHROPIC_API_KEY 또는 AI_API_KEY)",
+    401: "인증에 실패했습니다. API Key 가 올바른지 확인하세요. (.env 파일 또는 환경변수 ANTHROPIC_API_KEY / AI_API_KEY)",
     402: "결제/크레딧 문제입니다. Anthropic Console 의 결제 상태를 확인하세요.",
     403: "이 API Key 로는 해당 요청(모델)을 사용할 권한이 없습니다.",
     404: "모델을 찾을 수 없습니다. --model 값(예: claude-opus-4-6)을 확인하세요.",
@@ -123,6 +123,8 @@ def api_key_problem(key: str) -> Optional[str]:
     HTTP 헤더에 넣을 수 없어 requests 내부에서 알아보기 힘든 예외가 난다. 미리 걸러 안내한다.
     키 값 자체는 절대 출력하지 않는다.
     """
+    if key.upper().startswith("YOUR"):
+        return "API Key 가 아직 예시 값(YOUR_KEY) 그대로입니다. 실제 키로 바꿔 주세요."
     if any(ch.isspace() for ch in key):
         return "API Key 중간에 공백 또는 줄바꿈이 있습니다."
     if not all(33 <= ord(ch) <= 126 for ch in key):

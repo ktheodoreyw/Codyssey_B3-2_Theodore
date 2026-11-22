@@ -1,6 +1,6 @@
 """CLI 진입점: 옵션 해석과 전체 자동화 흐름 연결.
 
-  [1] API Key 확인 (환경변수)
+  [1] API Key 확인 (.env 파일 → 환경변수)
   [2] Git 변경 사항 수집 (git status → git diff)
   [3] safe-mode 적용 (마스킹 / 민감 파일 제외 / 전송량 제한)
   [4] 프롬프트 구성 → Claude API 1회 호출
@@ -31,6 +31,7 @@ from .ai_client import (
     supports_effort,
     supports_temperature,
 )
+from .env_loader import EnvLoadResult, load_env_file
 from .formatter import WARN, Check, build_commit_message, build_pr_draft, clean_line
 from .git_collector import (
     DiffResult,
@@ -194,20 +195,34 @@ def run(args: argparse.Namespace) -> int:
     kind: str = args.command
     label = KIND_LABEL[kind]
 
-    # [1] API Key ------------------------------------------------------------
+    # [1] API Key: .env 파일 → 환경변수 → API Key -------------------------------
+    env = load_env_file()
+    _log_env_file(env)
     api_key = None
     if not args.dry_run:
         api_key = get_api_key()
         names = " 또는 ".join(config.API_KEY_ENV_VARS)
         if not api_key:
+            if env.error:
+                where = f".env 파일을 읽지 못했습니다(위 [WARN] 참고): {env.path}"
+            elif env.found:
+                where = f".env 파일은 찾았지만 API Key 항목이 없습니다: {env.path}"
+            else:
+                where = f".env 파일이 없습니다: {env.path}"
             console.error(
                 f"AI API Key 환경변수가 설정되지 않았습니다. ({names})\n"
-                f'예) export {config.API_KEY_ENV_VARS[0]}="YOUR_KEY"'
+                f"{where}\n"
+                f"방법 1) .env 파일(권장): ai-gitgen 폴더({config.PROJECT_DIR})에서 cp .env.example .env 후 "
+                f"{config.API_KEY_ENV_VARS[0]}=YOUR_KEY 의 YOUR_KEY 를 실제 키로 수정\n"
+                f'방법 2) 환경변수 직접 설정: export {config.API_KEY_ENV_VARS[0]}="YOUR_KEY"'
             )
             return EXIT_ERROR
         problem = api_key_problem(api_key)
         if problem:
-            console.error(f"{problem} ({names})\n키를 공백/줄바꿈/특수문자 없이 다시 복사해 설정하세요.")
+            console.error(
+                f"{problem} ({names})\n"
+                ".env 파일(또는 환경변수)의 키를 공백/줄바꿈/특수문자 없이 다시 복사해 설정하세요."
+            )
             return EXIT_ERROR
 
     # [2] Git 변경 사항 수집 ---------------------------------------------------
@@ -371,6 +386,16 @@ def _sub(data: dict, key: str) -> dict:
 # ---------------------------------------------------------------------------
 # 로그 도우미
 # ---------------------------------------------------------------------------
+def _log_env_file(env: EnvLoadResult) -> None:
+    """.env 로드 결과를 알린다. 변수 '이름'만 출력하고 값(키)은 절대 출력하지 않는다."""
+    if env.error:
+        console.warn(env.error)
+    if env.loaded:
+        console.info(f".env 파일에서 환경변수 {len(env.loaded)}개를 불러왔습니다 ({', '.join(env.loaded)})")
+    if env.skipped:
+        console.info(f"이미 설정된 환경변수({', '.join(env.skipped)})는 .env 값으로 덮어쓰지 않습니다.")
+
+
 def _mask_into(report: SafeModeReport, text: str) -> str:
     masked, counts = mask_text(text)
     for name, n in counts.items():
