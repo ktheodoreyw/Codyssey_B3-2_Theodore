@@ -256,7 +256,7 @@ def _masked_path(path: str, report: SafeModeReport) -> str:
     """safe-mode 에서는 파일 경로에 섞인 이메일·토큰도 가린다(마스킹 건수는 보고서에 더한다)."""
     if not report.enabled:
         return path
-    masked, counts = mask_text(path)
+    masked, counts = mask_text(path, report.policy)
     for name, n in counts.items():
         report.masked[name] = report.masked.get(name, 0) + n
     return masked
@@ -266,7 +266,13 @@ def _build_notes(report: SafeModeReport) -> List[str]:
     notes: List[str] = []
     if report.masked_total:
         notes.append(f"민감정보로 의심되는 값 {report.masked_total}건이 [MASKED:종류] 로 가려져 있다.")
-    if report.excluded_sensitive or report.skipped_over_file_limit or report.truncated or report.hard_limited:
+    if (
+        report.excluded_sensitive
+        or report.excluded_by_policy
+        or report.skipped_over_file_limit
+        or report.truncated
+        or report.hard_limited
+    ):
         notes.append(
             "일부 파일의 diff 는 전송 제한으로 생략/축소되었다. 생략된 파일은 <changed_files> 의 이름과 통계로 변경 성격을 추정한다."
         )
