@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import __version__, config, console
@@ -43,7 +44,8 @@ from .git_collector import (
     select_pr_diff,
 )
 from .prompts import build_user_prompt, schema_for, system_prompt_for
-from .safe_mode import PreparedFile, SafeModeReport, mask_data, mask_text, prepare_files
+from .safe_mode import MASK_RULES, PreparedFile, SafeModeReport, mask_data, mask_text, prepare_files
+from .safe_policy import POLICY_FILE_NAME, PolicyError, SafeModePolicy, load_policy
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -75,6 +77,16 @@ def _positive_int(value: str) -> int:
         raise argparse.ArgumentTypeError(f"정수가 아닙니다: {value}")
     if v <= 0:
         raise argparse.ArgumentTypeError("1 이상의 정수여야 합니다.")
+    return v
+
+
+def _non_negative_int(value: str) -> int:
+    try:
+        v = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"정수가 아닙니다: {value}")
+    if v < 0:
+        raise argparse.ArgumentTypeError("0 이상의 정수여야 합니다.")
     return v
 
 
@@ -138,23 +150,64 @@ def build_parser() -> argparse.ArgumentParser:
     io.add_argument("--dry-run", action="store_true", help="API 를 호출하지 않고 전송될 프롬프트만 출력 (API Key 불필요)")
     io.add_argument("--plain", action="store_true", help="결과 텍스트만 출력 (파일 저장/파이프 용)")
 
-    sub = parser.add_subparsers(dest="command", metavar="{commit,pr,all}")
+    # safe-mode 정책 옵션: commit / pr / all / policy 공통 (기본값 ← .ai-gitgen.json ← 이 옵션)
+    policy_opts = argparse.ArgumentParser(add_help=False)
+    pol = policy_opts.add_argument_group("safe-mode 정책 옵션 (설정 파일 .ai-gitgen.json 보다 우선)")
+    pol.add_argument(
+        "--safe-mode-config",
+        metavar="PATH",
+        help=f"safe-mode 정책 파일 경로 (기본: 현재 폴더의 {POLICY_FILE_NAME}, 없으면 기본 정책)",
+    )
+    pol.add_argument("--max-files", type=_positive_int, metavar="N", help=f"전송할 최대 파일 수 (기본: {config.SAFE_MAX_FILES})")
+    pol.add_argument("--max-lines", type=_positive_int, metavar="N", help=f"전송할 전체 최대 줄 수 (기본: {config.SAFE_MAX_LINES})")
+    pol.add_argument(
+        "--max-lines-per-file",
+        type=_non_negative_int,
+        metavar="N",
+        help="파일 하나에서 보낼 최대 줄 수, 0 = 제한 없음 (기본: 0)",
+    )
+    pol.add_argument(
+        "--mask-pattern",
+        action="append",
+        metavar="NAME=REGEX",
+        help="추가 마스킹 규칙(정규식). 여러 번 지정 가능. 예) --mask-pattern \"TICKET=JIRA-\\d+\"",
+    )
+    pol.add_argument(
+        "--exclude-file",
+        action="append",
+        metavar="GLOB",
+        help="내용을 보내지 않을 파일 패턴. 여러 번 지정 가능. 예) --exclude-file \"*.sql\"",
+    )
+
+    sub = parser.add_subparsers(dest="command", metavar="{commit,pr,all,policy}")
     sub.add_parser(
         "commit",
-        parents=[common],
+        parents=[common, policy_opts],
         help="커밋 메시지 생성",
         description="스테이징된 변경(없으면 작업 트리 변경)으로 커밋 메시지를 생성합니다.",
     )
     pr = sub.add_parser(
         "pr",
-        parents=[common],
+        parents=[common, policy_opts],
         help="PR 제목/본문 초안 생성",
         description="기준 브랜치 대비 커밋된 변경(없으면 작업 트리 변경)으로 PR 제목/본문 초안을 생성합니다.",
     )
     pr.add_argument("--base", help="비교 기준 브랜치 (기본: main → master 순으로 자동 탐색)")
+    policy_cmd = sub.add_parser(
+        "policy",
+        parents=[policy_opts],
+        help="현재 적용되는 safe-mode 정책 보기 (API 호출 없음)",
+        description="기본값·설정 파일·CLI 옵션을 합친 safe-mode 정책(전송 제한 숫자, 마스킹 규칙, 제외 파일)을 출력합니다.",
+    )
+    policy_cmd.add_argument(
+        "--check",
+        action="append",
+        metavar="TEXT",
+        help="이 텍스트에 정책을 적용한 결과(마스킹 전/후)를 보여 줍니다. 여러 번 지정 가능.",
+    )
     all_ = sub.add_parser(
         "all",
-        parents=[common],
+        parents=[common, policy_opts],
         help="변경 요약 + 커밋 메시지 + PR 초안을 한 번에 생성 (API 1회 호출)",
         description=(
             "현재 변경(스테이징된 변경 → 작업 트리 변경 순, 둘 다 없으면 기준 브랜치 대비 커밋된 변경)으로 "
@@ -176,7 +229,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.print_help()
         return EXIT_USAGE
     try:
+        if args.command == "policy":
+            return run_policy(args)
         return run(args)
+    except PolicyError as exc:
+        console.error(f"safe-mode 정책 설정 오류: {exc}")
+        return EXIT_USAGE
     except GitError as exc:
         console.error(str(exc))
         return EXIT_ERROR
@@ -225,6 +283,11 @@ def run(args: argparse.Namespace) -> int:
             )
             return EXIT_ERROR
 
+    # safe-mode 정책: 기본값 ← .ai-gitgen.json ← CLI 옵션 (잘못된 설정은 여기서 바로 알린다)
+    policy = _load_policy(args)
+    if not args.safe_mode and not policy.is_default():
+        console.warn("safe-mode 가 꺼져 있어 safe-mode 정책(설정 파일/정책 옵션)은 적용되지 않습니다.")
+
     # [2] Git 변경 사항 수집 ---------------------------------------------------
     ensure_repo_root()
     status = collect_status()
@@ -260,25 +323,32 @@ def run(args: argparse.Namespace) -> int:
         )
 
     # [3] safe-mode -------------------------------------------------------------
-    prepared, report = prepare_files(diff.files, args.safe_mode)
+    prepared, report = prepare_files(diff.files, args.safe_mode, policy)
     branch_for_prompt = status.branch
     context = args.context
+    diff_label, diff_command = diff.label, diff.command
     if args.safe_mode:
-        # diff 뿐 아니라 사용자가 입력한 --context 와 브랜치 이름도 외부로 나가므로 함께 가린다.
+        # diff 뿐 아니라 --context, 현재/기준 브랜치 이름도 외부로 나가므로 같은 규칙으로 가린다.
         branch_for_prompt = _mask_into(report, branch_for_prompt)
         context = _mask_into(report, context) if context else context
+        diff_label = _mask_into(report, diff_label)
+        diff_command = _mask_into(report, diff_command)
 
     # [4] 프롬프트 + API 호출 -----------------------------------------------------
     user_prompt = build_user_prompt(  # safe-mode 면 파일 경로도 여기서 가린다
         kind,
         branch_for_prompt,
-        diff.label,
-        diff.command,
+        diff_label,
+        diff_command,
         prepared,
         report,
         user_context=context,
     )
     _log_safe_mode(report)
+    if args.safe_mode and policy.exclude_files:
+        unmatched = policy.unmatched_excludes(f.path for f in diff.files)
+        if unmatched:
+            console.info(f"이번 변경과 일치하는 파일이 없는 제외 패턴: {', '.join(unmatched)} (오타가 아닌지 확인)")
     temperature: Optional[float] = args.temperature
     if temperature is not None and not supports_temperature(args.model):
         console.warn(f"'{args.model}' 모델은 temperature 를 지원하지 않아 요청에서 제외합니다. (품질 조절은 --effort 사용)")
@@ -326,7 +396,7 @@ def run(args: argparse.Namespace) -> int:
     output_checks: List[Check] = []
     if args.safe_mode:
         # 결과에 민감정보가 섞여 나오는 경우에 대비해, 길이 검증·자르기 '전에' 필드 단위로 가린다.
-        data, masked = mask_data(data)
+        data, masked = mask_data(data, policy)
         if masked:
             output_checks.append(Check(WARN, f"결과에 민감정보 의심 패턴 {masked}건이 있어 가렸습니다 - 확인 필요"))
 
@@ -384,6 +454,103 @@ def _sub(data: dict, key: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# safe-mode 정책
+# ---------------------------------------------------------------------------
+def _load_policy(args: argparse.Namespace) -> SafeModePolicy:
+    return load_policy(
+        config_path=args.safe_mode_config,
+        max_files=args.max_files,
+        max_lines=args.max_lines,
+        max_lines_per_file=args.max_lines_per_file,
+        mask_patterns=args.mask_pattern,
+        exclude_files=args.exclude_file,
+    )
+
+
+def run_policy(args: argparse.Namespace) -> int:
+    """`python main.py policy`: 적용될 safe-mode 정책을 보여 준다. Git/API 와 무관하다."""
+    policy = _load_policy(args)
+    _print_policy(policy)
+    for text in args.check or []:
+        _print_policy_check(policy, text)
+    console.flush()
+    return EXIT_OK
+
+
+def _print_policy(policy: SafeModePolicy) -> None:
+    from .safe_mode import SENSITIVE_FILE_PATTERNS, SENSITIVE_PATH_PATTERNS
+
+    def origin(key: str, default_text: str) -> str:
+        src = policy.source_of(key)
+        return "기본값" if src == "기본값" else f"{src}, 기본 {default_text}"
+
+    per_file = f"{policy.max_lines_per_file}줄" if policy.max_lines_per_file else "제한 없음"
+    console.out()
+    console.header("safe-mode 정책")
+    if policy.config_path:
+        console.out(f"설정 파일 : {_display_path(policy.config_path)}")
+    else:
+        console.out(f"설정 파일 : 없음 (현재 폴더에 {POLICY_FILE_NAME} 이 없어 기본 정책 사용)")
+    console.out()
+    console.out("[전송 제한]  safe-mode ON 일 때 외부 API 로 보내는 diff 의 양")
+    console.out(f"  최대 파일 수      : {policy.max_files}개  ({origin('max_files', f'{config.SAFE_MAX_FILES}개')})")
+    console.out(f"  전체 최대 줄 수   : {policy.max_lines}줄  ({origin('max_lines', f'{config.SAFE_MAX_LINES}줄')})")
+    console.out(f"  파일당 최대 줄 수 : {per_file}  ({origin('max_lines_per_file', '제한 없음')})")
+    console.out(f"  전송 하드 상한    : {config.HARD_MAX_CHARS:,}자  (고정, safe-mode OFF 에도 적용)")
+    console.out()
+    console.out("[민감 파일 제외]  내용은 보내지 않고 파일명과 +/- 통계만 전송")
+    # '.env' 로 시작하는 이름은 모두 제외하므로(.env, .env.*, .envrc 포함) '.env*' 한 줄로 보여 준다.
+    builtin = [".env*"] + [p for p in SENSITIVE_FILE_PATTERNS if not p.startswith(".env")] + list(SENSITIVE_PATH_PATTERNS)
+    console.out(f"  내장 패턴 {len(builtin)}개 : {', '.join(builtin)}")
+    console.out("    (이름이 .example / .sample / .template / .dist 로 끝나는 예시 파일은 제외하지 않고 마스킹 후 전송)")
+    if policy.exclude_files:
+        console.out(f"  사용자 패턴 {len(policy.exclude_files)}개 (목록 항목은 설정 파일 + CLI 옵션이 합쳐짐)")
+        for glob, src in zip(policy.exclude_files, policy.exclude_sources):
+            console.out(f"    - {glob}  ({src})")
+    else:
+        console.out("  사용자 패턴 : 없음")
+    console.out(f"  정책 파일({POLICY_FILE_NAME}) 자체도 내용을 보내지 않음 (가리려는 값이 정규식 원문에 들어 있으므로)")
+    console.out()
+    console.out("[마스킹 규칙]  위에서부터 순서대로 적용, 가린 자리는 [MASKED:라벨]")
+    active = policy.builtin_rule_names
+    disabled = f", 비활성: {', '.join(policy.disabled_rules)}" if policy.disabled_rules else ""
+    console.out(f"  1) 내장 규칙 {len(active)}개 (전체 {len(MASK_RULES)}개{disabled})")
+    for start in range(0, len(active), 6):
+        console.out("     " + ", ".join(active[start:start + 6]))
+    if policy.custom_rules:
+        console.out(f"  2) 사용자 규칙 {len(policy.custom_rules)}개 (내장 규칙 다음에 적용 → 기존 보호를 줄이지 않고 추가만 함)")
+        for i, rule in enumerate(policy.custom_rules, start=1):
+            how = "value 그룹만" if "value" in rule.regex.groupindex else "일치 부분 전체"
+            console.out(f"     {i}. {rule.name}  /{rule.pattern}/  → {how} [MASKED:{rule.label}]  ({rule.source})")
+    else:
+        console.out("  2) 사용자 규칙 : 없음")
+    console.out()
+
+
+def _display_path(path: str) -> str:
+    """현재 폴더 아래 파일이면 상대 경로로 보여 준다(화면·증빙에 개인 PC 경로를 남기지 않기 위함)."""
+    try:
+        rel = os.path.relpath(path)
+    except ValueError:  # 다른 드라이브
+        return path
+    return path if rel.startswith("..") else rel.replace("\\", "/")
+
+
+def _print_policy_check(policy: SafeModePolicy, text: str) -> None:
+    """--check: 입력을 실제 diff 의 추가 줄(+)로 넣어 마스킹한다(실제 전송과 같은 조건)."""
+    body = f"@@ -0,0 +1 @@\n+{text}"
+    masked_body, counts = mask_text(body, policy)
+    masked = masked_body.split("\n", 1)[1]
+    masked = masked[1:] if masked.startswith("+") else masked
+    console.header("정책 적용 확인 (--check)")
+    console.out(f"입력 : {text}")
+    console.out(f"결과 : {masked}")
+    applied = ", ".join(f"{name} {n}" for name, n in counts.items()) if counts else "가려진 값 없음"
+    console.out(f"적용 : {applied}  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)")
+    console.out()
+
+
+# ---------------------------------------------------------------------------
 # 로그 도우미
 # ---------------------------------------------------------------------------
 def _log_env_file(env: EnvLoadResult) -> None:
@@ -397,7 +564,7 @@ def _log_env_file(env: EnvLoadResult) -> None:
 
 
 def _mask_into(report: SafeModeReport, text: str) -> str:
-    masked, counts = mask_text(text)
+    masked, counts = mask_text(text, report.policy)
     for name, n in counts.items():
         report.masked[name] = report.masked.get(name, 0) + n
     return masked
@@ -422,9 +589,14 @@ def _log_safe_mode(report: SafeModeReport) -> None:
             console.warn(f"전송 하드 상한({config.HARD_MAX_CHARS:,}자)을 넘어 일부 diff 를 잘랐습니다.")
         console.info(f"전송 diff: {report.sent_lines}줄 / 원본 {report.original_lines}줄")
         return
+    policy = report.policy
+    if policy is not None and not policy.is_default():
+        console.info(f"safe-mode 정책: {policy.summary()}")
     parts = [f"마스킹 {report.masked_total}건"]
     if report.excluded_sensitive:
         parts.append(f"민감 파일 제외 {len(report.excluded_sensitive)}개")
+    if report.excluded_by_policy:
+        parts.append(f"정책 제외 {len(report.excluded_by_policy)}개")
     if report.skipped_over_file_limit:
         parts.append(f"파일 수 제한으로 생략 {len(report.skipped_over_file_limit)}개")
     parts.append(f"전송 diff {report.sent_lines}줄 / 원본 {report.original_lines}줄")
