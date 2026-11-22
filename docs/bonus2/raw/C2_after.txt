@@ -1,0 +1,40 @@
+$ python main.py commit --convention b2-2
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 팀 컨벤션: B2-2 팀 컨벤션 (프리셋 b2-2 (conventions/b2-2.json))
+[INFO] 현재 브랜치: feature/SIUUU1-members-json
+[INFO] Git status 수집 완료: 4개 파일 변경 감지 (staged 4, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 218줄, 4개 파일 (+99/-78) - 스테이징된 변경 (git diff --cached)
+[INFO] safe-mode ON: 마스킹 0건, 전송 diff 200줄 / 원본 218줄
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 4,724 / 출력 269 | 6.8초 | 예상 비용 $0.0303
+[DONE] 커밋 메시지 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : feature/SIUUU1-members-json
+비교 대상 : 스테이징된 변경 (git diff --cached)
+변경 파일 : 4개 (+99 / -78)
+  A  src/data/members.json  (+32/-0)
+  M  src/index.html  (+3/-3)
+  D  src/js/members.js  (+0/-75)  ※ diff 81줄 중 66줄만 전송
+  A  src/js/render.js  (+64/-0)  ※ diff 70줄 중 67줄만 전송
+AI 요약   : 팀원 데이터를 members.js 내 하드코딩 배열에서 data/members.json 파일로 분리하고, 렌더링 로직을 render.js로 옮겨 fetch로 JSON을 읽도록 변경했다.
+
+--- Commit Message ---
+refactor: 팀원 데이터를 members.json으로 분리
+
+src/js/members.js에서 데이터와 렌더링을 함께 관리하던 구조를 src/data/members.json과 src/js/render.js로 분리했습니다.
+render.js는 fetch로 JSON을 읽어 카드를 그리며, file:// 환경에서의 실패 시 안내 문구를 표시하도록 했습니다.
+src/index.html의 스크립트 참조와 주석을 새 파일 구조에 맞게 수정했습니다.
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] 팀 커밋 형식 '{type}: {subject}' 준수
+[OK] 커밋 제목 35자 (팀 기준 50자 이내)
+[OK] 본문 문장 3개
+[OK] 변경 파일 언급 4개 (members.json, index.html, members.js)
+[OK] 브랜치 이름 'feature/SIUUU1-members-json' 이(가) 팀 규칙과 일치
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.

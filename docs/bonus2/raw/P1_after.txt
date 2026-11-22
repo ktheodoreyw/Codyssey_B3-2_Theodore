@@ -1,0 +1,68 @@
+$ python main.py pr --base pr-base --convention b2-2 --issue 26
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 팀 컨벤션: B2-2 팀 컨벤션 (프리셋 b2-2 (conventions/b2-2.json))
+[INFO] 현재 브랜치: feature/SIUUU1-members-json
+[INFO] Git status 수집 완료: 0개 파일 변경 감지 (staged 0, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 222줄, 4개 파일 (+103/-78) - 'pr-base' 브랜치 대비 커밋된 변경 (git diff pr-base...HEAD)
+[INFO] safe-mode ON: 마스킹 0건, 전송 diff 200줄 / 원본 222줄
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 4,889 / 출력 569 | 12.7초 | 예상 비용 $0.0387
+[DONE] PR 초안 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : feature/SIUUU1-members-json
+비교 대상 : 'pr-base' 브랜치 대비 커밋된 변경 (git diff pr-base...HEAD)
+변경 파일 : 4개 (+103 / -78)
+  A  src/data/members.json  (+32/-0)
+  M  src/index.html  (+3/-3)
+  D  src/js/members.js  (+0/-75)  ※ diff 81줄 중 66줄만 전송
+  A  src/js/render.js  (+68/-0)  ※ diff 74줄 중 67줄만 전송
+AI 요약   : 팀원 데이터를 JS 배열에서 별도 JSON 파일로 분리하고, fetch로 읽어 렌더링하도록 구조를 변경했다.
+
+--- PR Title ---
+refactor: 팀원 데이터를 members.json으로 분리하고 fetch 기반 렌더링 적용
+------------------------------------------------------------
+
+--- PR Body ---
+## 관련 이슈
+
+Closes #26
+
+## What (무엇을 바꿨나요)
+
+- `src/data/members.json` 팀원 4명의 데이터를 담은 JSON 파일 추가
+- `src/js/members.js` 삭제 — 데이터 배열과 렌더링 로직이 합쳐져 있던 파일 제거
+- `src/js/render.js` 추가 — fetch로 members.json을 읽어 카드를 그리는 렌더링 전용 스크립트
+- `src/index.html` 스크립트 참조를 members.js에서 render.js로 변경하고 주석 갱신
+
+## Why (왜 바꿨나요)
+
+- 팀원 데이터와 렌더링 로직의 관심사를 분리하여 데이터 수정 시 JS 파일을 건드리지 않도록 하기 위해서입니다
+- JSON 파일로 분리하면 데이터 형식이 명확해지고, 다른 도구나 스크립트에서도 재사용할 수 있기 위해서입니다
+
+## How (어떻게 확인했나요)
+
+- 로컬 서버(Live Server 등)로 `src/index.html`을 열어 팀원 카드 4장이 정상 렌더링되는지 확인합니다
+- 브라우저 개발자 도구 Network 탭에서 `data/members.json` 요청이 200으로 응답하는지 확인합니다
+- `members.json`을 임시로 삭제하거나 경로를 틀리게 바꾼 뒤, 목록 자리에 에러 안내 문구가 표시되는지 확인합니다
+
+## 체크리스트
+
+- [ ] 커밋 메시지가 컨벤션(`type: 설명`)을 따릅니다
+- [ ] 리뷰어를 지정했습니다
+- [ ] 리뷰 코멘트에 답글 또는 수정으로 응답했습니다
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] PR 제목이 팀 형식 '{type}: {subject}' 준수
+[경고] PR 제목 53자 (팀 기준 50자 이내)
+[OK] PR 템플릿 섹션 5개가 팀 순서대로 있음
+[OK] 섹션마다 팀 기준 이상의 불릿
+[OK] 관련 이슈 연결(Closes #번호)
+[OK] 체크리스트 3/3개 (제출 전 직접 체크)
+[OK] 브랜치 이름 'feature/SIUUU1-members-json' 이(가) 팀 규칙과 일치
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.

@@ -1,0 +1,36 @@
+$ python main.py commit --convention b2-2
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 팀 컨벤션: B2-2 팀 컨벤션 (프리셋 b2-2 (conventions/b2-2.json))
+[INFO] 현재 브랜치: feature/ktheodoreyw-history-cleanup
+[INFO] Git status 수집 완료: 1개 파일 변경 감지 (staged 1, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 21줄, 1개 파일 (+12/-1) - 스테이징된 변경 (git diff --cached)
+[INFO] safe-mode ON: 마스킹 0건, 전송 diff 21줄 / 원본 21줄
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 2,250 / 출력 197 | 5.8초 | 예상 비용 $0.0162
+[DONE] 커밋 메시지 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : feature/ktheodoreyw-history-cleanup
+비교 대상 : 스테이징된 변경 (git diff --cached)
+변경 파일 : 1개 (+12 / -1)
+  M  docs/CONTRIBUTING.md  (+12/-1)
+AI 요약   : CONTRIBUTING.md에 히스토리 정리(git rebase -i) 기준을 새 6장으로 추가하고, 기존 주의 문구에서 해당 장을 참조하도록 수정했다.
+
+--- Commit Message ---
+docs: CONTRIBUTING에 히스토리 정리 기준 추가
+
+docs/CONTRIBUTING.md에 6장 '히스토리 정리(git rebase -i)' 절을 추가하여 squash, reword, 백업, force-with-lease 사용 기준을 명시했습니다.
+기존 주의 문구에 6장 참조 안내를 덧붙였습니다.
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] 팀 커밋 형식 '{type}: {subject}' 준수
+[OK] 커밋 제목 33자 (팀 기준 50자 이내)
+[OK] 본문 문장 2개
+[OK] 변경 파일 언급 1개 (CONTRIBUTING.md)
+[OK] 브랜치 이름 'feature/ktheodoreyw-history-cleanup' 이(가) 팀 규칙과 일치
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.

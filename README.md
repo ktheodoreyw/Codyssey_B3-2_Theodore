@@ -23,14 +23,15 @@ API 를 호출하는 데서 끝나지 않고 **입력(프롬프트·컨텍스트
 3. [사용법](#3-사용법)
 4. [출력 예시](#4-출력-예시)
 5. [민감정보 대응 (safe-mode)](#5-민감정보-대응-safe-mode)
-6. [비용과 요청 횟수](#6-비용과-요청-횟수)
-7. [API 파라미터와 모델 선택](#7-api-파라미터와-모델-선택)
-8. [REST API 연동 흐름](#8-rest-api-연동-흐름-요청--응답--예외)
-9. [프롬프트 설계](#9-프롬프트-설계)
-10. [출력 검증 규칙](#10-출력-검증-규칙-후처리)
-11. [프로젝트 구조](#11-프로젝트-구조)
-12. [테스트](#12-테스트)
-13. [주의사항](#13-주의사항)
+6. [팀 커밋/PR 컨벤션 (보너스 2)](#6-팀-커밋pr-컨벤션-보너스-2)
+7. [비용과 요청 횟수](#7-비용과-요청-횟수)
+8. [API 파라미터와 모델 선택](#8-api-파라미터와-모델-선택)
+9. [REST API 연동 흐름](#9-rest-api-연동-흐름-요청--응답--예외)
+10. [프롬프트 설계](#10-프롬프트-설계)
+11. [출력 검증 규칙](#11-출력-검증-규칙-후처리)
+12. [프로젝트 구조](#12-프로젝트-구조)
+13. [테스트](#13-테스트)
+14. [주의사항](#14-주의사항)
 
 ---
 
@@ -153,6 +154,10 @@ python main.py commit --temperature 0.5 --max-tokens 1024 --effort low
 # safe-mode 정책 보기 / 바꾸기 (5장 참고)
 python main.py policy
 python main.py commit --max-files 5 --max-lines 120 --mask-pattern "EMPLOYEE_ID=\bEMP-\d{6}\b"
+
+# 팀 컨벤션 보기 / 적용하기 (6장 참고)
+python main.py convention --convention b2-2
+python main.py pr --convention b2-2 --issue 26
 ```
 
 ### 어떤 diff 를 분석하나요?
@@ -195,6 +200,15 @@ python main.py commit --max-files 5 --max-lines 120 --mask-pattern "EMPLOYEE_ID=
 | `--mask-pattern NAME=REGEX` | 없음 | 마스킹 규칙(정규식) 추가. 여러 번 지정 가능 |
 | `--exclude-file GLOB` | 없음 | 내용을 보내지 않을 파일 패턴 추가. 여러 번 지정 가능 |
 
+### 팀 컨벤션 옵션 (commit / pr / all / convention)
+
+설정 파일(`.ai-gitgen.json` 의 `convention`)보다 우선합니다. 자세한 내용은 [6장](#6-팀-커밋pr-컨벤션-보너스-2)을 참고하세요.
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `--convention NAME\|PATH` | 현재 폴더 `.ai-gitgen.json` 의 `convention`, 없으면 `default` | `default`(기본 컨벤션), 프리셋 이름(`b2-2`), 또는 JSON 파일 경로 |
+| `--issue N` (`pr`, `all`) | 없음 | PR 본문 '관련 이슈' 에 `Closes #N` 으로 채울 번호 |
+
 ### 결과를 실제 커밋에 적용하기
 
 생성된 문구는 **초안**입니다. 터미널에서 복사해 쓰거나, 파일로 저장한 뒤 에디터에서 다듬어 커밋하세요.
@@ -212,7 +226,7 @@ git commit -e -F commit_msg.txt                  # -e: 커밋 전에 에디터�
 |---|---|
 | 0 | 성공, 또는 변경 사항이 없어 정상 종료 |
 | 1 | 오류 (Git 저장소 아님/루트 아님, API Key 없음, API 호출 실패 등) |
-| 2 | 잘못된 옵션 (예: `--temperature 1.5`), safe-mode 정책 설정 오류, 또는 명령(commit/pr/all/policy) 없이 실행 |
+| 2 | 잘못된 옵션 (예: `--temperature 1.5`), safe-mode 정책·팀 컨벤션 설정 오류, 또는 명령 없이 실행 |
 | 130 | Ctrl+C 로 실행 중단 |
 
 ## 4. 출력 예시
@@ -528,7 +542,210 @@ $ python main.py policy --safe-mode-config docs/bonus3/ai-gitgen.sample.json --c
 | ON · 기본 정책 (= 고도화 전) | 7/13 | 200줄 |
 | ON · 사용자 정책 (`ai-gitgen.sample.json`) | **0/13** | 120줄 |
 
-## 6. 비용과 요청 횟수
+## 6. 팀 커밋/PR 컨벤션 (보너스 2)
+
+기본 결과(`type(scope): subject` + 불릿, PR 은 Why/What/How to Test)는 일반적인 형식일 뿐, 팀마다 커밋 타입·문체·PR 템플릿이 다릅니다. 그래서 **이전 미션 저장소 [On-Premise-Sky/B2-2](https://github.com/On-Premise-Sky/B2-2) 의 실제 기록을 분석해 팀 컨벤션을 정의**하고, 도구가 그 컨벤션대로 커밋 메시지와 PR 초안을 만들도록 했습니다.
+
+증빙: [docs/bonus2/README.md](docs/bonus2/README.md)(요약) · [docs/bonus2/EVIDENCE.md](docs/bonus2/EVIDENCE.md)(스크립트가 만든 상세 보고서) · [docs/bonus2/raw/](docs/bonus2/raw/)(실행 원본 출력)
+
+### 이전 미션(B2-2) 분석
+
+팀 문서(`docs/CONTRIBUTING.md`, `.github/pull_request_template.md`)와 **실제로 쌓인 기록**을 함께 봤습니다. 문서에 적힌 규칙이 실제로 지켜졌는지, 문서에 없는 습관(문체 등)은 무엇인지 확인하기 위해서입니다. 숫자는 `scripts/bonus2_evidence.py` 가 저장소를 clone 해서 다시 계산합니다.
+
+| 대상 | 관찰한 것 | 컨벤션에 반영 |
+|---|---|---|
+| 커밋 64개 (머지 제외) | 63개가 `type: 설명` (예외 1개는 GitHub 웹 편집 기본 메시지), scope 사용 0개 | `{type}: {subject}`, scope 없음 |
+| | 타입: docs 40 · feat 10 · fix 8 · chore 4 · refactor 1 | CONTRIBUTING 의 5종만 허용 |
+| | 제목 평균 32.6자(50자 초과 1개), 한글 63개, 마침표 0개, '~ 추가' '~ 수정' '~ 분리' 같은 명사형 끝맺음 | 한글, 50자 이내, 명사형, 마침표 없음 |
+| | 본문은 6개에만 있고 불릿 0개, '~했습니다' 존댓말 문장 | 필요할 때만, 불릿 없는 존댓말 문장 |
+| PR 25개 | 제목 25개 모두 커밋과 같은 `type: 설명`, 최대 47자 | 커밋과 같은 형식, 50자 이내 |
+| | 23개가 템플릿 순서(관련 이슈 → What → Why → How → 체크리스트) 그대로, `Closes #번호` 24개, 체크리스트 24개 | 이 순서의 본문 템플릿 + `Closes #N` + 체크리스트 |
+| 브랜치 | CONTRIBUTING: `<type>/<GitHub ID>-<작업 내용>` (예: `feature/SIUUU1-members-json`) | 브랜치 이름 검사 (어긋나면 경고) |
+
+### 정의한 팀 컨벤션 — `conventions/b2-2.json`
+
+**커밋 메시지**
+
+```
+<type>: <무엇을 바꿨는지>          ← 한글, 50자 이내, 명사형으로 끝맺음, 마침표 없음
+
+<필요할 때만: 무엇을 어떻게, 왜 바꿨는지 '~했습니다' 문장 1~3개 (불릿 없이, 파일 경로 포함)>
+```
+
+| type | 언제 |
+|---|---|
+| `feat` | 새 기능 / 결과물 추가 |
+| `fix` | 오류 수정 |
+| `docs` | 문서 추가·수정 |
+| `refactor` | 동작 변화 없는 구조 개선 |
+| `chore` | 설정, 폴더 구조 등 기타 |
+
+- 금지 제목: `update`, `fix`, `temp`, `wip`, `final`, `bug fix`, `edit file` 처럼 무엇을 바꿨는지 알 수 없는 제목 (CONTRIBUTING 의 나쁜 예)
+- 예: `docs: CONTRIBUTING에 리뷰 최소 기준 추가`, `refactor: 팀원 데이터를 members.json으로 분리`
+
+**Pull Request**
+
+- 제목: 커밋과 같은 형식, 50자 이내
+- 본문: 팀 PR 템플릿의 섹션과 순서를 그대로 따릅니다.
+
+```markdown
+## 관련 이슈
+
+Closes #<이슈 번호>                ← --issue N 으로 채움 (없으면 'Closes #' 로 비워 두고 경고)
+
+## What (무엇을 바꿨나요)
+
+- `파일 경로` 변경 내용            ← 1~5개
+
+## Why (왜 바꿨나요)
+
+- ~하기 위해서입니다.              ← 1~3개, 존댓말 평서문
+
+## How (어떻게 확인했나요)
+
+- ~를 확인합니다.                  ← 1~5개, 실행하지 않은 결과를 '확인했습니다'로 단정하지 않음
+
+## 체크리스트
+
+- [ ] 커밋 메시지가 컨벤션(`type: 설명`)을 따릅니다
+- [ ] 리뷰어를 지정했습니다
+- [ ] 리뷰 코멘트에 답글 또는 수정으로 응답했습니다
+```
+
+- How 를 '~를 확인합니다'로 쓰게 한 이유: 도구는 diff 만 보고 테스트를 실행하지 않습니다. 실행하지도 않은 결과를 '확인했습니다'로 적으면 사실이 아닌 PR 이 되므로, 작성자가 실행 후 실제 결과로 고치도록 했습니다.
+- 체크리스트는 사람이 직접 확인할 항목이라 모두 빈 칸(`[ ]`)으로 둡니다.
+
+**브랜치 이름**: `^(feature|fix|docs)/[A-Za-z0-9_-]+-[a-z0-9][a-z0-9-]*$` — 현재 브랜치가 어긋나면 검증 결과에 `[경고]` 를 표시합니다(생성은 계속).
+
+### 컨벤션 적용 방법
+
+세 가지 방법을 지원하며, 위에 있는 것이 우선합니다.
+
+| 우선순위 | 방법 | 예 | 용도 |
+|---|---|---|---|
+| 1 | `--convention` 옵션 | `--convention b2-2` (프리셋) · `--convention team.json` (파일) · `--convention default` | 이번 실행만 바꾸기 |
+| 2 | 대상 프로젝트 루트의 `.ai-gitgen.json` 의 `convention` 섹션 | 아래 예시 | 팀 저장소에 커밋해 팀원 모두 같은 컨벤션 사용 |
+| 3 | 기본 컨벤션 | — | 설정이 없으면 지금까지와 똑같이 동작 |
+
+```bash
+python main.py convention --convention b2-2   # 적용될 컨벤션 확인 (API 호출 없음)
+python main.py commit --convention b2-2
+python main.py pr --convention b2-2 --issue 26
+python main.py all --convention b2-2 --issue 26
+```
+
+**`.ai-gitgen.json` 예시** — safe-mode 정책(`safe_mode`)과 같은 파일에 함께 둘 수 있습니다. 프리셋 파일 [conventions/b2-2.json](conventions/b2-2.json) 을 복사해 시작하면 편합니다.
+
+```json
+{
+  "convention": {
+    "name": "우리 팀 컨벤션",
+    "commit": {
+      "format": "{type}: {subject}",
+      "types": {"feat": "새 기능", "fix": "오류 수정", "docs": "문서"},
+      "scope": "none",
+      "subject_max": 50,
+      "forbidden": ["update", "wip"],
+      "body": "prose"
+    },
+    "pr": {
+      "title_max": 50,
+      "issue": {"heading": "관련 이슈", "keyword": "Closes"},
+      "sections": [
+        {"key": "what", "heading": "What (무엇을 바꿨나요)", "min": 1, "max": 5},
+        {"key": "why", "heading": "Why (왜 바꿨나요)", "min": 1, "max": 3}
+      ],
+      "checklist": {"heading": "체크리스트", "items": ["리뷰어를 지정했습니다"]}
+    },
+    "branch_pattern": "^(feature|fix)/.+$"
+  }
+}
+```
+
+| 항목 | 허용 값 | 의미 |
+|---|---|---|
+| `commit.format` | `{type}`, `{subject}` 각 1번 필수, `{scope}` 는 `({scope})` 형태로만 | 제목 형식. 예: `{type}: {subject}`, `[{type}] {subject}`, `{type}({scope}): {subject}`. scope 가 비면 괄호째 빠짐 |
+| `commit.types` | `{"타입": "설명"}` (타입은 영문 소문자) | 허용 타입. 모델은 이 중에서만 고를 수 있음(응답 스키마의 enum) |
+| `commit.scope` | `none` / `optional` / `required` | scope 사용 여부. 생략하면 `format` 에 `({scope})` 가 있을 때 `optional`, 없을 때 `none`. PR 제목에도 같이 적용 |
+| `commit.subject_max` | 20~72 (기본 50) | 제목 권장 길이 |
+| `commit.subject_guide`, `body_guide` | 200자 이하 문자열 | 제목·본문 작성 요령 (프롬프트에 그대로 들어감) |
+| `commit.forbidden` | 문자열 배열 | 설명(subject) 전체가 이 말뿐이면 안 되는 말 (대소문자 무시) |
+| `commit.body` / `body_max` | `bullets` / `prose` / `none`, 1~5 | 본문을 불릿으로, 문장으로, 또는 쓰지 않기 |
+| `commit.examples` | 팀 형식에 맞는 문자열 배열 | 팀의 좋은 커밋 제목 예시 (few-shot) |
+| `pr.title_max`, `pr.tone` | 20~80, 문자열 | PR 제목 길이, 문체 |
+| `pr.issue` | `{heading, keyword}` | 이슈 연결 섹션 (`--issue N` → `Closes #N`) |
+| `pr.sections` | 1~6개 `{key, heading, guide?, min?, max?}` | 본문 섹션과 순서, 섹션별 항목 수. key·heading 은 서로 달라야 함 |
+| `pr.checklist` | `{heading, items[1개 이상]}` | 본문 끝 체크리스트 |
+| `pr.examples` | 응답 스키마와 같은 키(`type`, `subject`, 섹션 key)의 객체 배열 | 팀의 좋은 PR 예시 (few-shot) |
+| `branch_pattern` | 정규식 | 브랜치 이름 규칙 (어긋나면 경고) |
+
+잘못된 설정은 API 를 호출하기 전에 원인과 함께 알려 주고 종료 코드 2로 끝납니다. 예: 알 수 없는 항목(중첩된 `issue`·`checklist` 안 포함), `convention` 섹션 밖에 쓴 항목, 틀린 섹션 이름(`conventions` 등), 형식의 알 수 없는 자리표시자(`{ticket}`)나 중복, 범위를 벗어난 숫자, 중복된 섹션 key·heading, 팀 형식과 다른 예시, 정규식 오류. 프롬프트에 들어가는 예시까지 검사하는 이유는, 규칙과 어긋난 예시가 모델을 오히려 헷갈리게 만들기 때문입니다.
+
+### 도구 안에서 컨벤션이 반영되는 곳
+
+**프롬프트 템플릿 교체 + 응답 스키마 + 조립 + 검증** 네 곳에 모두 반영합니다. 프롬프트만 바꾸면 모델이 규칙을 어길 때 그대로 출력되기 때문입니다.
+
+| 단계 | 기본 컨벤션 | 팀 컨벤션 (`b2-2`) |
+|---|---|---|
+| 시스템 프롬프트 (`convention.system_prompt`) | 기본 규칙 | 팀 타입과 설명, 제목 작성 요령·금지 제목, 본문 문체, PR 섹션·문체, 팀의 실제 예시로 교체 |
+| 응답 스키마 (`convention.schema`) | 고정 스키마 | `type` 은 팀 타입만(enum), scope 없으면 `scope` 필드 자체를 빼고, PR 은 팀 섹션 key(`what`/`why`/`how`)로 생성 |
+| 조립 (`formatter.*_conv`) | `type(scope): subject` + 불릿 | `format` 대로 제목을 만들고(subject 앞에 중복으로 붙은 머리말은 제거) 본문은 문장으로, PR 은 템플릿 순서 + `Closes #N` + 체크리스트 |
+| 검증 (`formatter.validate_*_conv`) | 기본 규칙 | 커밋·PR 제목의 형식·길이·금지 제목, 섹션 순서·항목 수, 이슈 번호, 체크리스트 개수, 브랜치 이름. 줄이거나 기본 문구로 채운 곳은 `[보정]`·`[경고]` 로 표시 |
+
+- 기본 컨벤션일 때 프롬프트·스키마·출력은 **보너스 2 이전과 한 글자도 다르지 않습니다**. `tests/test_convention.py` 가 보너스 2 이전 코드의 프롬프트·스키마 해시와 출력 결과를 고정해 두고 비교합니다.
+- `--dry-run` 으로 팀 프롬프트와 실제로 보낼 응답 스키마(`Response Schema` 구획)를 API 호출 없이 볼 수 있습니다.
+- 팀 컨벤션을 쓸 때는 로그에 `[INFO] 팀 컨벤션: B2-2 팀 컨벤션 (프리셋 b2-2 ...)` 가 표시됩니다.
+
+### 적용 전/후 비교
+
+B2-2 에 실제로 있었던 변경 3건을 그 시점 상태로 재현해(커밋: 직전 커밋 + 그 변경을 스테이징, PR: 머지 직전 브랜치) **같은 diff** 로 `--convention default`(적용 전)와 `--convention b2-2`(적용 후)를 실제 API 로 생성했습니다. 팀원이 실제로 쓴 메시지와 함께, 팀 문서(CONTRIBUTING·PR 템플릿)에서 뽑은 기준으로 채점했습니다. 채점은 도구의 검증 함수가 아니라 증빙 스크립트가 따로 합니다.
+
+| 대상 | 팀원이 실제로 쓴 것 | 적용 전 (`default`) | 적용 후 (`b2-2`) |
+|---|---|---|---|
+| C1 커밋 — docs, 본문 없음 | 4/4 | 4/5 | **5/5** |
+| C2 커밋 — refactor, 파일 이동·삭제 | 5/5 | 4/5 | **5/5** |
+| P1 PR #27 — C2 와 같은 변경의 PR | 6/6 | 1/6 | **5/6** |
+
+**C2 커밋** — 같은 diff, 컨벤션만 다름
+
+```text
+[적용 전]
+refactor: 팀원 데이터를 JSON 파일로 분리하고 fetch 기반 렌더링으로 전환
+
+- members.json: 팀원 데이터를 독립 JSON 파일로 추출
+- render.js: fetch로 JSON을 읽어 카드를 렌더링하도록 members.js 대체
+- index.html: 스크립트 참조를 render.js로 변경하고 주석 갱신
+
+[적용 후]
+refactor: 팀원 데이터를 members.json으로 분리
+
+src/js/members.js에서 데이터와 렌더링을 함께 관리하던 구조를 src/data/members.json과 src/js/render.js로 분리했습니다.
+render.js는 fetch로 JSON을 읽어 카드를 그리며, file:// 환경에서의 실패 시 안내 문구를 표시하도록 했습니다.
+src/index.html의 스크립트 참조와 주석을 새 파일 구조에 맞게 수정했습니다.
+
+[팀원이 실제로 쓴 제목]
+refactor: 팀원 데이터를 members.json으로 분리
+```
+
+- 제목: 적용 후 제목(35자)은 팀원이 실제로 쓴 제목과 **같습니다**. 적용 전 제목(49자)은 두 가지 변경을 이어 붙였습니다.
+- 본문: 적용 전은 도구 기본값인 "파일명: 내용" 불릿, 적용 후는 B2-2 팀의 습관대로 불릿 없는 존댓말 문장 + 파일 경로입니다.
+
+**P1 PR #27** — 본문 구조 (발췌)
+
+| | 적용 전 (`default`) | 적용 후 (`b2-2`) |
+|---|---|---|
+| 섹션 | `## Why` → `## What` → `## How to Test` | `## 관련 이슈` → `## What (무엇을 바꿨나요)` → `## Why (왜 바꿨나요)` → `## How (어떻게 확인했나요)` → `## 체크리스트` (팀 템플릿 그대로) |
+| 관련 이슈 | 없음 | `Closes #26` (`--issue 26`) |
+| What | `src/data/members.json 추가: 팀원 4명의 …` | `` `src/data/members.json` 팀원 4명의 데이터를 담은 JSON 파일 추가 `` (경로를 백틱으로) |
+| Why 문체 | `… 관심사 분리가 필요` (개조식) | `… 건드리지 않도록 하기 위해서입니다` (팀의 존댓말) |
+| How 문체 | `… 정상 렌더링되는지 확인` | `… 정상 렌더링되는지 확인합니다` (실행하지 않은 결과를 '확인했습니다'로 단정하지 않음) |
+| 체크리스트 | 없음 | 팀 템플릿의 3개 항목 (`- [ ]`) |
+
+전문, 채점표, 토큰/비용은 [docs/bonus2/EVIDENCE.md](docs/bonus2/EVIDENCE.md) 에 있습니다. 6회 호출 비용은 모두 합쳐 약 $0.17 이고, 적용 전과 후의 비용은 거의 같습니다(프롬프트만 바꾸므로 추가 호출이 없음).
+
+**남은 한계와 개선 과정** — 모델이 가장 자주 어긴 규칙은 **제목 길이**였습니다. 리뷰 반영 중 실행한 2회차에서 C2·P1 제목이 56자·55자로 넘쳐, '제목 전체 50자'만 알려 주던 프롬프트를 형식 머리말을 뺀 **subject 한도를 타입별 숫자로** 알려 주도록 고쳤습니다(예: `refactor` 40자 = 50 − `refactor: ` 10자). 최종 실행에서 C2 는 35자로 통과했지만, P1 PR 제목은 두 가지 변경을 한 제목에 담아 53자로 여전히 넘었습니다. 도구는 이를 검증 결과에 `[경고] PR 제목 53자 (팀 기준 50자 이내)` 로 알려 줍니다. 길이에 맞추려고 자르면 뜻이 깨지므로 자르지 않고 사람이 다듬도록 경고만 합니다.
+
+## 7. 비용과 요청 횟수
 
 | 항목 | 내용 |
 |---|---|
@@ -546,7 +763,7 @@ $ python main.py policy --safe-mode-config docs/bonus3/ai-gitgen.sample.json --c
 - safe-mode 는 끄지 마세요. 전송량 제한 덕분에 큰 diff 에서도 비용이 일정하게 유지됩니다.
 - 스크립트로 여러 번 반복 호출하지 마세요(요청 한도 429 의 원인).
 
-## 7. API 파라미터와 모델 선택
+## 8. API 파라미터와 모델 선택
 
 ### 왜 `claude-opus-4-6` + API 버전 `2023-06-01` 인가
 
@@ -582,7 +799,7 @@ $ python main.py policy --safe-mode-config docs/bonus3/ai-gitgen.sample.json --c
 | **medium** | 17.9초 | 791 | $0.0474 | 간결하면서 What 이 더 구체적 |
 | high | 21.9초 | 982 | $0.0522 | 불릿이 길고 장황해짐 |
 
-## 8. REST API 연동 흐름 (요청 → 응답 → 예외)
+## 9. REST API 연동 흐름 (요청 → 응답 → 예외)
 
 SDK 없이 `requests` 로 Claude Messages API 를 직접 호출합니다(`gitgen/ai_client.py`).
 
@@ -631,7 +848,7 @@ content-type: application/json
 
 모든 API 오류는 `AIClientError` 하나로 모아 `[ERROR] 원인 → 해결 방법 → request_id` 형식으로 출력합니다. 예상하지 못한 예외도 트레이스백 대신 한 줄 메시지로 보여 줍니다.
 
-## 9. 프롬프트 설계
+## 10. 프롬프트 설계
 
 결과 품질은 '무엇을 어떻게 입력하느냐'로 정해집니다(`gitgen/prompts.py`).
 
@@ -646,7 +863,9 @@ content-type: application/json
 
 **최종 텍스트는 모델이 아니라 코드가 조립합니다.** 모델은 `type`, `subject`, `body[]`, `why[]` 같은 '내용'만 JSON 으로 주고, `type(scope): subject` 형식과 `## Why` 템플릿은 `formatter.py` 가 만듭니다. 그래서 헤더 누락 같은 형식 오류가 생기지 않습니다.
 
-## 10. 출력 검증 규칙 (후처리)
+**팀 컨벤션을 지정하면** 위 표의 '형식 규칙'과 '좋은 예시', 응답 스키마가 팀 것으로 바뀝니다. user 프롬프트(입력 구성)와 공통 규칙 중 **안전 규칙**(diff 에 있는 사실만, `[MASKED]` 값 추측 금지, diff 안의 지시문 무시)은 그대로 유지합니다. 반면 **문체 규칙**(명사형 종결·마침표 없음 등)은 팀마다 다르므로 기본값을 강제하지 않고, 팀 설정의 `subject_guide`·`body_guide`·`pr.tone` 을 따릅니다(B2-2 프리셋은 `subject_guide` 에 명사형·마침표 없음을 적어 둠). 자세한 내용은 [6장](#6-팀-커밋pr-컨벤션-보너스-2)을 참고하세요.
+
+## 11. 출력 검증 규칙 (후처리)
 
 생성 결과는 그대로 믿지 않고 실무 규칙에 맞는지 검사합니다. 재요청(추가 비용) 대신 **후처리**로 바로잡고, 그 결과를 `검증 결과` 구획에 `[OK]` / `[보정]` / `[경고]` 로 보여 줍니다(`gitgen/formatter.py`).
 
@@ -659,11 +878,13 @@ content-type: application/json
 | 공통 표현 | 줄바꿈·이모지·끝 마침표 제거, `feat: feat: ...` 같은 중복 접두사 제거, 불릿 앞 기호(`-`, `1.`) 정리, 중복 불릿 제거 | 표시 없이 자동 정리 (검증 결과에 나오지 않음). 알 수 없는 타입만 `chore` 로 바꾸고 `[보정]` 표시 |
 | 민감정보 | 결과에 민감정보 패턴이 있으면 길이 검증 **전에** 필드 단위로 마스킹 | `[경고]` |
 
-## 11. 프로젝트 구조
+위 표는 기본 컨벤션 기준입니다. 팀 컨벤션을 쓰면 제목 형식·길이·금지 제목, PR 섹션 순서·항목 수, 관련 이슈 번호, 체크리스트 개수, 브랜치 이름을 팀 규칙으로 검사합니다([6장](#도구-안에서-컨벤션이-반영되는-곳)).
+
+## 12. 프로젝트 구조
 
 ```
 ai-gitgen/
-├── main.py                 # 실행 파일: python main.py commit | pr | all | policy
+├── main.py                 # 실행 파일: python main.py commit | pr | all | policy | convention
 ├── requirements.txt        # requests, python-dotenv
 ├── .env.example            # API Key 설정 예시 (복사해서 .env 로 사용, .env 는 커밋 제외)
 ├── gitgen/
@@ -672,6 +893,7 @@ ai-gitgen/
 │   ├── git_collector.py    # git status / git diff 실행·파싱, 명령별 diff 선택
 │   ├── safe_mode.py        # 민감 파일 제외, 패턴 마스킹, 파일·줄 수 전송 제한
 │   ├── safe_policy.py      # safe-mode 정책: .ai-gitgen.json/옵션 → 사용자 정규식 규칙·전송 한도
+│   ├── convention.py       # 팀 커밋/PR 컨벤션: 불러오기·검증, 프롬프트 템플릿·스키마 교체
 │   ├── prompts.py          # system/user 프롬프트, JSON 스키마
 │   ├── ai_client.py        # Claude Messages API REST 호출, 응답·예외 처리
 │   ├── formatter.py        # 커밋/PR 텍스트 조립, 길이·템플릿·표현 검증 및 후처리
@@ -685,9 +907,14 @@ ai-gitgen/
     ├── test_cli.py         # 임시 Git 저장소 + API mock 으로 end-to-end
     ├── test_env_loader.py  # .env 로딩, OS 환경변수 우선순위, 안내 문구
     ├── test_safe_policy.py # safe-mode 정책: 규칙 추가, 전송 한도, 설정 검증, 하위 호환
+    ├── test_convention.py  # 팀 컨벤션: 불러오기·검증, 프롬프트/스키마 교체, 팀 형식 조립·검증
     └── test_review_fixes.py  # 코드 리뷰에서 찾은 문제의 회귀 테스트
+conventions/
+└── b2-2.json               # B2-2 팀 컨벤션 프리셋 (--convention b2-2)
 scripts/
+├── bonus2_evidence.py      # 보너스 2 증빙 생성 (B2-2 분석 + 컨벤션 적용 전/후 비교)
 └── bonus3_evidence.py      # 보너스 3 증빙 생성 (OFF / 기본 / 사용자 정책 / 고도화 전 비교)
+docs/bonus2/                # 보너스 2 증빙 (README.md, EVIDENCE.md, 원본 출력)
 docs/bonus3/                # 보너스 3 증빙 (README.md, EVIDENCE.md, 정책 예시, 원본 출력)
 ```
 
@@ -697,18 +924,18 @@ docs/bonus3/                # 보너스 3 증빙 (README.md, EVIDENCE.md, 정책
 | 수집 | `git_collector` | git 출력 텍스트 → `GitStatus`, `FileDiff[]` | 파싱은 순수 함수로 문자열 입력 테스트, 선택 로직은 임시 Git 저장소로 테스트 |
 | 보호 | `safe_mode` + `safe_policy` | `FileDiff[]` + 정책 → 전송용 diff + 마스킹 보고서 | 규칙별 샘플, 오탐 사례, 긴 줄 성능, 정책 설정 검증·우선순위·전송 한도 |
 | 호출 | `ai_client` | payload → `AIResponse` / `AIClientError` | `post=` 에 가짜 함수를 넣어 상태 코드·예외·재시도 횟수 검증 |
-| 후처리 | `formatter` | AI JSON → 커밋/PR 텍스트 + 검증 결과 | 규칙 위반 입력을 넣어 보정 결과 확인 |
+| 후처리 | `formatter` (+ `convention`) | AI JSON → 커밋/PR 텍스트 + 검증 결과 (팀 컨벤션이면 팀 형식·템플릿으로) | 규칙 위반 입력을 넣어 보정 결과 확인 |
 | 전체 | `cli` | 명령행 → 터미널 출력 | `call_messages` 를 mock 으로 바꿔 end-to-end |
 
-## 12. 테스트
+## 13. 테스트
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-실제 API 를 호출하지 않으므로 API Key 없이 실행됩니다. 프로젝트의 실제 `.env` 도 읽지 않습니다(테스트용 임시 경로로 바꿔서 실행). 임시 Git 저장소를 만들어 쓰므로 Git 이 설치되어 있어야 합니다(약 40초, Python 3.14 / Windows 11 에서 확인).
+실제 API 를 호출하지 않으므로 API Key 없이 실행됩니다. 프로젝트의 실제 `.env` 도 읽지 않습니다(테스트용 임시 경로로 바꿔서 실행). 임시 Git 저장소를 만들어 쓰므로 Git 이 설치되어 있어야 합니다(테스트 385개, 약 1~2분, Python 3.14 / Windows 11 에서 확인).
 
-## 13. 주의사항
+## 14. 주의사항
 
 - **생성된 문구는 초안입니다.** 사실과 다른 내용이 없는지 반드시 검토한 뒤 적용하세요.
 - 이 도구는 초안 출력까지만 합니다. `git commit`, `git push`, GitHub PR 생성은 하지 않습니다.
