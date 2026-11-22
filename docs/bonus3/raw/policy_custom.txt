@@ -1,0 +1,46 @@
+
+====================== safe-mode 정책 ======================
+설정 파일 : docs/bonus3/ai-gitgen.sample.json
+
+[전송 제한]  safe-mode ON 일 때 외부 API 로 보내는 diff 의 양
+  최대 파일 수      : 5개  (설정 파일, 기본 10개)
+  전체 최대 줄 수   : 120줄  (설정 파일, 기본 200줄)
+  파일당 최대 줄 수 : 30줄  (설정 파일, 기본 제한 없음)
+  전송 하드 상한    : 150,000자  (고정, safe-mode OFF 에도 적용)
+
+[민감 파일 제외]  내용은 보내지 않고 파일명과 +/- 통계만 전송
+  내장 패턴 31개 : .env*, *.env, *.pem, *.key, *.p12, *.pfx, *.ppk, *.jks, *.keystore, id_rsa*, id_dsa*, id_ecdsa*, id_ed25519*, *.kdbx, credentials, credentials*.json, service-account*.json, *secret*, .npmrc, .pypirc, .netrc, .pgpass, .git-credentials, kubeconfig, *.tfstate, *.tfstate.*, *.tfvars, .aws/*, .ssh/*, .kube/config, .docker/config.json
+    (이름이 .example / .sample / .template / .dist 로 끝나는 예시 파일은 제외하지 않고 마스킹 후 전송)
+  사용자 패턴 2개 (목록 항목은 설정 파일 + CLI 옵션이 합쳐짐)
+    - *.sql  (설정 파일)
+    - db/  (설정 파일)
+  정책 파일(.ai-gitgen.json) 자체도 내용을 보내지 않음 (가리려는 값이 정규식 원문에 들어 있으므로)
+
+[마스킹 규칙]  위에서부터 순서대로 적용, 가린 자리는 [MASKED:라벨]
+  1) 내장 규칙 21개 (전체 21개)
+     PRIVATE_KEY, ANTHROPIC_KEY, OPENAI_KEY, STRIPE_KEY, AWS_ACCESS_KEY, GITHUB_TOKEN
+     GITLAB_TOKEN, HUGGINGFACE_TOKEN, GOOGLE_API_KEY, SLACK_TOKEN, JWT, BEARER
+     BASIC_AUTH, URL_CREDENTIAL, QUERY_TOKEN, EMAIL, KR_RRN, KR_PHONE
+     CARD_NUMBER, SECRET_ASSIGNMENT, ENV_SECRET
+  2) 사용자 규칙 5개 (내장 규칙 다음에 적용 → 기존 보호를 줄이지 않고 추가만 함)
+     1. EMPLOYEE_ID  /\bEMP-\d{6}\b/  → 일치 부분 전체 [MASKED:EMPLOYEE]  (설정 파일)
+     2. INTERNAL_HOST  /\b[\w-]+\.corp\.example\.com\b/  → 일치 부분 전체 [MASKED:INTERNAL_HOST]  (설정 파일)
+     3. SHOP_TOKEN  /\bshoptok_[0-9a-f]{12}\b/  → 일치 부분 전체 [MASKED:TOKEN]  (설정 파일)
+     4. CODENAME  /(?i)\bfalcon-x\b/  → 일치 부분 전체 [MASKED:CODENAME]  (설정 파일)
+     5. LICENSE_SERIAL  /LICENSE_SERIAL = "(?P<value>[A-Z0-9-]{12,})"/  → value 그룹만 [MASKED:LICENSE]  (설정 파일)
+
+================= 정책 적용 확인 (--check) =================
+입력 : 담당 EMP-204817 / 프로젝트 FALCON-X
+결과 : 담당 [MASKED:EMPLOYEE] / 프로젝트 [MASKED:CODENAME]
+적용 : EMPLOYEE_ID 1, CODENAME 1  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+
+================= 정책 적용 확인 (--check) =================
+입력 : headers = {"X-Shop-Auth": "shoptok_9f8e7d6c5b4a"}
+결과 : headers = {"X-Shop-Auth": "[MASKED:TOKEN]"}
+적용 : SHOP_TOKEN 1  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+
+================= 정책 적용 확인 (--check) =================
+입력 : LICENSE_SERIAL = "SHOP-7F3K-92QX-11ZD"
+결과 : LICENSE_SERIAL = "[MASKED:LICENSE]"
+적용 : LICENSE_SERIAL 1  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+

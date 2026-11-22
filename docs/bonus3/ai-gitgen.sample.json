@@ -1,0 +1,36 @@
+{
+  "safe_mode": {
+    "max_files": 5,
+    "max_lines": 120,
+    "max_lines_per_file": 30,
+    "exclude_files": [
+      "*.sql",
+      "db/"
+    ],
+    "mask_rules": [
+      {
+        "name": "EMPLOYEE_ID",
+        "pattern": "\\bEMP-\\d{6}\\b",
+        "label": "EMPLOYEE"
+      },
+      {
+        "name": "INTERNAL_HOST",
+        "pattern": "\\b[\\w-]+\\.corp\\.example\\.com\\b"
+      },
+      {
+        "name": "SHOP_TOKEN",
+        "pattern": "\\bshoptok_[0-9a-f]{12}\\b",
+        "label": "TOKEN"
+      },
+      {
+        "name": "CODENAME",
+        "pattern": "(?i)\\bfalcon-x\\b"
+      },
+      {
+        "name": "LICENSE_SERIAL",
+        "pattern": "LICENSE_SERIAL = \"(?P<value>[A-Z0-9-]{12,})\"",
+        "label": "LICENSE"
+      }
+    ]
+  }
+}

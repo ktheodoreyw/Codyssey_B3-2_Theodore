@@ -1,0 +1,171 @@
+--- 고도화 전 코드
++++ ON 사용자 정책
+@@ -10,11 +10,11 @@
+ - [수정] app/config.py (+7/-2)
+ - [수정] app/orders.py (+11/-2)
+-- [추가] app/services/service_01.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
+-- [추가] app/services/service_02.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
+-- [추가] app/services/service_03.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
+-- [추가] app/services/service_04.py (+42/-0)  ※ diff 48줄 중 27줄만 전송
+-- [추가] app/services/service_05.py (+42/-0)  ※ diff 48줄 중 26줄만 전송
+-- [추가] app/services/service_06.py (+42/-0)  ※ diff 48줄 중 26줄만 전송
+-- [추가] db/seed_customers.sql (+2/-0)
++- [추가] app/services/service_01.py (+42/-0)  ※ diff 48줄 중 30줄만 전송
++- [추가] app/services/service_02.py (+42/-0)  ※ diff 48줄 중 29줄만 전송
++- [추가] app/services/service_03.py (+42/-0)  ※ diff 48줄 중 29줄만 전송
++- [추가] app/services/service_04.py (+42/-0)  ※ 파일 수 제한(5개) 초과: 내용 생략(safe-mode)
++- [추가] app/services/service_05.py (+42/-0)  ※ 파일 수 제한(5개) 초과: 내용 생략(safe-mode)
++- [추가] app/services/service_06.py (+42/-0)  ※ 파일 수 제한(5개) 초과: 내용 생략(safe-mode)
++- [추가] db/seed_customers.sql (+2/-0)  ※ 사용자 정책(exclude_files)으로 내용 제외(safe-mode)
+ </changed_files>
+ 
+@@ -30,8 +30,8 @@
+ +TIMEOUT = 30
+ +ANTHROPIC_API_KEY = "[MASKED:API_KEY]"
+-+DATABASE_URL = "postgres://[MASKED:CREDENTIAL]@db1.corp.example.com:5432/shop"
+++DATABASE_URL = "postgres://[MASKED:CREDENTIAL]@[MASKED:INTERNAL_HOST]:5432/shop"
+ +ADMIN_EMAIL = "[MASKED:EMAIL]"
+ +SUPPORT_PHONE = "[MASKED:PHONE]"
+-+LICENSE_SERIAL = "SHOP-7F3K-92QX-11ZD"
+++LICENSE_SERIAL = "[MASKED:LICENSE]"
+ diff --git a/app/orders.py b/app/orders.py
+ index a836993..18e4e57 100644
+@@ -41,11 +41,11 @@
+ -def create_order(items):
+ -    return {"items": items}
+-+BILLING_HOST = "billing.corp.example.com"
+++BILLING_HOST = "[MASKED:INTERNAL_HOST]"
+ +
+ +
+ +def create_order(items, user):
+-+    """주문을 만들고 결제 서버에 요청한다. (프로젝트 FALCON-X 결제 연동, 출시 전 비공개)"""
+-+    # 담당: EMP-204817 (결제 연동)
+-+    headers = {"X-Shop-Auth": "shoptok_9f8e7d6c5b4a"}
+++    """주문을 만들고 결제 서버에 요청한다. (프로젝트 [MASKED:CODENAME] 결제 연동, 출시 전 비공개)"""
+++    # 담당: [MASKED:EMPLOYEE] (결제 연동)
+++    headers = {"X-Shop-Auth": "[MASKED:TOKEN]"}
+ +    total = sum(item['price'] * item['qty'] for item in items)
+ +    if total <= 0:
+@@ -79,5 +79,8 @@
+ +    order['step_01_16'] = 16 * 1  # 처리 16
+ +    order['step_01_17'] = 17 * 1  # 처리 17
+-... (이하 21줄 생략)
+++    order['step_01_18'] = 18 * 1  # 처리 18
+++    order['step_01_19'] = 19 * 1  # 처리 19
+++    order['step_01_20'] = 20 * 1  # 처리 20
++... (이하 18줄 생략)
+ diff --git a/app/services/service_02.py b/app/services/service_02.py
+ new file mode 100644
+@@ -107,5 +110,7 @@
+ +    order['step_02_16'] = 16 * 2  # 처리 16
+ +    order['step_02_17'] = 17 * 2  # 처리 17
+-... (이하 21줄 생략)
+++    order['step_02_18'] = 18 * 2  # 처리 18
+++    order['step_02_19'] = 19 * 2  # 처리 19
++... (이하 19줄 생략)
+ diff --git a/app/services/service_03.py b/app/services/service_03.py
+ new file mode 100644
+@@ -135,99 +140,11 @@
+ +    order['step_03_16'] = 16 * 3  # 처리 16
+ +    order['step_03_17'] = 17 * 3  # 처리 17
+-... (이하 21줄 생략)
+-diff --git a/app/services/service_04.py b/app/services/service_04.py
+-new file mode 100644
+-index 0000000..a86a072
+---- /dev/null
+-+++ b/app/services/service_04.py
+-@@ -0,0 +1,42 @@
+-+"""서비스 04: 주문 처리 단계 4"""
+-+
+-+
+-+def step_04(order):
+-+    order['step_04_01'] = 1 * 4  # 처리 1
+-+    order['step_04_02'] = 2 * 4  # 처리 2
+-+    order['step_04_03'] = 3 * 4  # 처리 3
+-+    order['step_04_04'] = 4 * 4  # 처리 4
+-+    order['step_04_05'] = 5 * 4  # 처리 5
+-+    order['step_04_06'] = 6 * 4  # 처리 6
+-+    order['step_04_07'] = 7 * 4  # 처리 7
+-+    order['step_04_08'] = 8 * 4  # 처리 8
+-+    order['step_04_09'] = 9 * 4  # 처리 9
+-+    order['step_04_10'] = 10 * 4  # 처리 10
+-+    order['step_04_11'] = 11 * 4  # 처리 11
+-+    order['step_04_12'] = 12 * 4  # 처리 12
+-+    order['step_04_13'] = 13 * 4  # 처리 13
+-+    order['step_04_14'] = 14 * 4  # 처리 14
+-+    order['step_04_15'] = 15 * 4  # 처리 15
+-+    order['step_04_16'] = 16 * 4  # 처리 16
+-+    order['step_04_17'] = 17 * 4  # 처리 17
+-... (이하 21줄 생략)
+-diff --git a/app/services/service_05.py b/app/services/service_05.py
+-new file mode 100644
+-index 0000000..67d77a8
+---- /dev/null
+-+++ b/app/services/service_05.py
+-@@ -0,0 +1,42 @@
+-+"""서비스 05: 주문 처리 단계 5"""
+-+
+-+
+-+def step_05(order):
+-+    order['step_05_01'] = 1 * 5  # 처리 1
+-+    order['step_05_02'] = 2 * 5  # 처리 2
+-+    order['step_05_03'] = 3 * 5  # 처리 3
+-+    order['step_05_04'] = 4 * 5  # 처리 4
+-+    order['step_05_05'] = 5 * 5  # 처리 5
+-+    order['step_05_06'] = 6 * 5  # 처리 6
+-+    order['step_05_07'] = 7 * 5  # 처리 7
+-+    order['step_05_08'] = 8 * 5  # 처리 8
+-+    order['step_05_09'] = 9 * 5  # 처리 9
+-+    order['step_05_10'] = 10 * 5  # 처리 10
+-+    order['step_05_11'] = 11 * 5  # 처리 11
+-+    order['step_05_12'] = 12 * 5  # 처리 12
+-+    order['step_05_13'] = 13 * 5  # 처리 13
+-+    order['step_05_14'] = 14 * 5  # 처리 14
+-+    order['step_05_15'] = 15 * 5  # 처리 15
+-+    order['step_05_16'] = 16 * 5  # 처리 16
+-... (이하 22줄 생략)
+-diff --git a/app/services/service_06.py b/app/services/service_06.py
+-new file mode 100644
+-index 0000000..c83fef2
+---- /dev/null
+-+++ b/app/services/service_06.py
+-@@ -0,0 +1,42 @@
+-+"""서비스 06: 주문 처리 단계 6"""
+-+
+-+
+-+def step_06(order):
+-+    order['step_06_01'] = 1 * 6  # 처리 1
+-+    order['step_06_02'] = 2 * 6  # 처리 2
+-+    order['step_06_03'] = 3 * 6  # 처리 3
+-+    order['step_06_04'] = 4 * 6  # 처리 4
+-+    order['step_06_05'] = 5 * 6  # 처리 5
+-+    order['step_06_06'] = 6 * 6  # 처리 6
+-+    order['step_06_07'] = 7 * 6  # 처리 7
+-+    order['step_06_08'] = 8 * 6  # 처리 8
+-+    order['step_06_09'] = 9 * 6  # 처리 9
+-+    order['step_06_10'] = 10 * 6  # 처리 10
+-+    order['step_06_11'] = 11 * 6  # 처리 11
+-+    order['step_06_12'] = 12 * 6  # 처리 12
+-+    order['step_06_13'] = 13 * 6  # 처리 13
+-+    order['step_06_14'] = 14 * 6  # 처리 14
+-+    order['step_06_15'] = 15 * 6  # 처리 15
+-+    order['step_06_16'] = 16 * 6  # 처리 16
+-... (이하 22줄 생략)
+-diff --git a/db/seed_customers.sql b/db/seed_customers.sql
+-new file mode 100644
+-index 0000000..b4db6fa
+---- /dev/null
+-+++ b/db/seed_customers.sql
+-@@ -0,0 +1,2 @@
+-+INSERT INTO customers (name, rrn, phone) VALUES ('홍길동', '[MASKED:RRN]', '[MASKED:PHONE]');
+-+INSERT INTO customers (name, rrn, phone) VALUES ('김철수', '[MASKED:RRN]', '[MASKED:PHONE]');
+++    order['step_03_18'] = 18 * 3  # 처리 18
+++    order['step_03_19'] = 19 * 3  # 처리 19
++... (이하 19줄 생략)
+ </diff>
+ 
+ <notes>
+-- 민감정보로 의심되는 값 8건이 [MASKED:종류] 로 가려져 있다.
++- 민감정보로 의심되는 값 10건이 [MASKED:종류] 로 가려져 있다.
+ - 일부 파일의 diff 는 전송 제한으로 생략/축소되었다. 생략된 파일은 <changed_files> 의 이름과 통계로 변경 성격을 추정한다.
+ </notes>

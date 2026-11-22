@@ -1,0 +1,45 @@
+$ python main.py commit
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 현재 브랜치: main
+[INFO] Git status 수집 완료: 10개 파일 변경 감지 (staged 10, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 335줄, 10개 파일 (+273/-4) - 스테이징된 변경 (git diff --cached)
+[INFO] safe-mode ON: 마스킹 8건, 민감 파일 제외 1개, 전송 diff 200줄 / 원본 335줄
+[INFO] 마스킹 상세: ANTHROPIC_KEY 1, EMAIL 1, KR_PHONE 3, KR_RRN 2, URL_CREDENTIAL 1
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 5,990 / 출력 232 | 6.1초 | 예상 비용 $0.0357
+[DONE] 커밋 메시지 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : main
+비교 대상 : 스테이징된 변경 (git diff --cached)
+변경 파일 : 10개 (+273 / -4)
+  A  .env  (+1/-0)  ※ 민감 파일로 판단되어 내용 제외(safe-mode)
+  M  app/config.py  (+7/-2)
+  M  app/orders.py  (+11/-2)
+  A  app/services/service_01.py  (+42/-0)  ※ diff 48줄 중 27줄만 전송
+  A  app/services/service_02.py  (+42/-0)  ※ diff 48줄 중 27줄만 전송
+  A  app/services/service_03.py  (+42/-0)  ※ diff 48줄 중 27줄만 전송
+  A  app/services/service_04.py  (+42/-0)  ※ diff 48줄 중 27줄만 전송
+  A  app/services/service_05.py  (+42/-0)  ※ diff 48줄 중 26줄만 전송
+  A  app/services/service_06.py  (+42/-0)  ※ diff 48줄 중 26줄만 전송
+  A  db/seed_customers.sql  (+2/-0)
+AI 요약   : 주문 처리 서비스 모듈 6개를 추가하고, 주문 생성 함수에 사용자·금액 계산 로직을 반영했으며, 설정값과 시드 데이터를 갱신했다.
+
+--- Commit Message ---
+feat(orders): 주문 처리 단계별 서비스 모듈 및 주문 생성 로직 추가
+
+- app/services/service_01~06.py: 주문 처리 단계 1~6 서비스 모듈 추가
+- app/orders.py: create_order에 user 파라미터·총액 계산·금액 검증 로직 추가
+- app/config.py: DEBUG·TIMEOUT 설정 변경 및 외부 연동 설정값 추가
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] 커밋 제목 44자 (권장 50자 이내)
+[OK] 제목 형식 'type(scope): subject' 준수
+[OK] 본문 핵심 변경 불릿 3개
+[OK] 변경 파일 언급 2개 (config.py, orders.py)
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.

@@ -1,0 +1,39 @@
+
+====================== safe-mode 정책 ======================
+설정 파일 : 없음 (현재 폴더에 .ai-gitgen.json 이 없어 기본 정책 사용)
+
+[전송 제한]  safe-mode ON 일 때 외부 API 로 보내는 diff 의 양
+  최대 파일 수      : 10개  (기본값)
+  전체 최대 줄 수   : 200줄  (기본값)
+  파일당 최대 줄 수 : 제한 없음  (기본값)
+  전송 하드 상한    : 150,000자  (고정, safe-mode OFF 에도 적용)
+
+[민감 파일 제외]  내용은 보내지 않고 파일명과 +/- 통계만 전송
+  내장 패턴 31개 : .env*, *.env, *.pem, *.key, *.p12, *.pfx, *.ppk, *.jks, *.keystore, id_rsa*, id_dsa*, id_ecdsa*, id_ed25519*, *.kdbx, credentials, credentials*.json, service-account*.json, *secret*, .npmrc, .pypirc, .netrc, .pgpass, .git-credentials, kubeconfig, *.tfstate, *.tfstate.*, *.tfvars, .aws/*, .ssh/*, .kube/config, .docker/config.json
+    (이름이 .example / .sample / .template / .dist 로 끝나는 예시 파일은 제외하지 않고 마스킹 후 전송)
+  사용자 패턴 : 없음
+  정책 파일(.ai-gitgen.json) 자체도 내용을 보내지 않음 (가리려는 값이 정규식 원문에 들어 있으므로)
+
+[마스킹 규칙]  위에서부터 순서대로 적용, 가린 자리는 [MASKED:라벨]
+  1) 내장 규칙 21개 (전체 21개)
+     PRIVATE_KEY, ANTHROPIC_KEY, OPENAI_KEY, STRIPE_KEY, AWS_ACCESS_KEY, GITHUB_TOKEN
+     GITLAB_TOKEN, HUGGINGFACE_TOKEN, GOOGLE_API_KEY, SLACK_TOKEN, JWT, BEARER
+     BASIC_AUTH, URL_CREDENTIAL, QUERY_TOKEN, EMAIL, KR_RRN, KR_PHONE
+     CARD_NUMBER, SECRET_ASSIGNMENT, ENV_SECRET
+  2) 사용자 규칙 : 없음
+
+================= 정책 적용 확인 (--check) =================
+입력 : 담당 EMP-204817 / 프로젝트 FALCON-X
+결과 : 담당 EMP-204817 / 프로젝트 FALCON-X
+적용 : 가려진 값 없음  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+
+================= 정책 적용 확인 (--check) =================
+입력 : headers = {"X-Shop-Auth": "shoptok_9f8e7d6c5b4a"}
+결과 : headers = {"X-Shop-Auth": "shoptok_9f8e7d6c5b4a"}
+적용 : 가려진 값 없음  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+
+================= 정책 적용 확인 (--check) =================
+입력 : LICENSE_SERIAL = "SHOP-7F3K-92QX-11ZD"
+결과 : LICENSE_SERIAL = "SHOP-7F3K-92QX-11ZD"
+적용 : 가려진 값 없음  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+
