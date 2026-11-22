@@ -272,6 +272,19 @@ class GitCollectorFixTests(unittest.TestCase):
         self.assertIn("정상 UTF-8", text)
         self.assertIn("로그인 재시도", text)
 
+    def test_git_timeout_becomes_git_error(self):
+        """git 이 멈추면 무한 대기하지 않고 원인을 담은 GitError 로 끝난다."""
+        import subprocess as sp
+
+        from gitgen.git_collector import GitError, run_git
+
+        with mock.patch("gitgen.git_collector.subprocess.run", side_effect=sp.TimeoutExpired(["git"], 1)) as run:
+            with self.assertRaises(GitError) as ctx:
+                run_git(["status"])
+        self.assertIn("끝나지 않았습니다", str(ctx.exception))
+        self.assertEqual(run.call_args[1]["stdin"], sp.DEVNULL)
+        self.assertIn("timeout", run.call_args[1])
+
     def test_crlf_content_is_normalized(self):
         raw = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-x\r\n+y\r\n"
         f = parse_diff(raw)[0]

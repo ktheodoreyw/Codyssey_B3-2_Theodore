@@ -51,6 +51,9 @@ DEFAULT_EFFORT = "medium"
 # 한 번의 HTTP 요청에 대한 타임아웃(초)
 DEFAULT_TIMEOUT = 120.0
 
+# git status / git diff 한 번에 허용하는 최대 시간(초). 넘으면 멈춰 있는 대신 오류로 알린다.
+GIT_TIMEOUT = 300.0
+
 # 일시적 오류(429, 5xx, 네트워크) 시 최대 요청 횟수(첫 요청 포함).
 # 과제 제약: 1회 실행당 요청 횟수는 1~2회 이내.
 MAX_API_ATTEMPTS = 2
