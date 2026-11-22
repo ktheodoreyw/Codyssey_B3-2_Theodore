@@ -1,0 +1,22 @@
+# 과제 설명서: 실제 API Key 가 들어 있으므로 절대 커밋하지 않는다
+과제설명서.pdf
+*.pdf
+
+# 비밀 값
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
