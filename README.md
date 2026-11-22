@@ -149,6 +149,10 @@ python main.py commit --dry-run
 
 # 파라미터 바꾸기
 python main.py commit --temperature 0.5 --max-tokens 1024 --effort low
+
+# safe-mode 정책 보기 / 바꾸기 (5장 참고)
+python main.py policy
+python main.py commit --max-files 5 --max-lines 120 --mask-pattern "EMPLOYEE_ID=\bEMP-\d{6}\b"
 ```
 
 ### 어떤 diff 를 분석하나요?
@@ -178,6 +182,19 @@ python main.py commit --temperature 0.5 --max-tokens 1024 --effort low
 | `--plain` | 꺼짐 | 구획/검증 결과 없이 결과 텍스트만 출력 (파일 저장·파이프용) |
 | `--base` (`pr`, `all`) | `main` → `master` | PR 비교 기준 브랜치 |
 
+### safe-mode 정책 옵션 (commit / pr / all / policy 공통)
+
+설정 파일(`.ai-gitgen.json`)보다 우선합니다. 자세한 내용은 [5장](#safe-mode-정책-바꾸기-마스킹-규칙-추가--전송-한도-조정)을 참고하세요.
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `--safe-mode-config PATH` | 현재 폴더의 `.ai-gitgen.json` | 정책 파일 경로 |
+| `--max-files N` | `10` | 내용을 보낼 최대 파일 수 (1~1000) |
+| `--max-lines N` | `200` | 보낼 diff 전체 최대 줄 수 (1~20000) |
+| `--max-lines-per-file N` | `0` (제한 없음) | 파일 하나에서 보낼 최대 줄 수 (0~20000) |
+| `--mask-pattern NAME=REGEX` | 없음 | 마스킹 규칙(정규식) 추가. 여러 번 지정 가능 |
+| `--exclude-file GLOB` | 없음 | 내용을 보내지 않을 파일 패턴 추가. 여러 번 지정 가능 |
+
 ### 결과를 실제 커밋에 적용하기
 
 생성된 문구는 **초안**입니다. 터미널에서 복사해 쓰거나, 파일로 저장한 뒤 에디터에서 다듬어 커밋하세요.
@@ -195,7 +212,7 @@ git commit -e -F commit_msg.txt                  # -e: 커밋 전에 에디터�
 |---|---|
 | 0 | 성공, 또는 변경 사항이 없어 정상 종료 |
 | 1 | 오류 (Git 저장소 아님/루트 아님, API Key 없음, API 호출 실패 등) |
-| 2 | 잘못된 옵션 (예: `--temperature 1.5`) 또는 명령(commit/pr/all) 없이 실행 |
+| 2 | 잘못된 옵션 (예: `--temperature 1.5`), safe-mode 정책 설정 오류, 또는 명령(commit/pr/all/policy) 없이 실행 |
 | 130 | Ctrl+C 로 실행 중단 |
 
 ## 4. 출력 예시
@@ -389,7 +406,7 @@ $ python main.py commit
 |---|---|---|
 | ① 민감 파일 제외 | 파일 내용 자체를 보내지 않음 (파일명·통계만 전송) | `.env` 로 시작하는 모든 파일(`.env.local`, `.env~`, `.envrc` 등), `*.env`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*` 등 SSH 키, `credentials`, `credentials*.json`, `service-account*.json`, `*secret*`, `.npmrc`, `.pypirc`, `.netrc`, `.pgpass`, `.git-credentials`, `kubeconfig`, `*.tfstate`, `*.tfvars`, `.aws/*`, `.ssh/*`, `.kube/config`, `.docker/config.json`, `*.ppk`, `*.jks`, `*.keystore`, `*.kdbx` · 이름이 바뀐 경우 **원래 이름**까지 검사 · `*.example`, `*.sample`, `*.template`, `*.dist` 는 제외 대상 아님(내용이 마스킹되어 전송) |
 | ② 패턴 마스킹 | 값을 `[MASKED:종류]` 로 치환 | Anthropic/OpenAI/Stripe/AWS/GitHub/GitLab/HuggingFace/Google/Slack 키·토큰, JWT, `Bearer`/`Basic` 인증, URL 속 계정(`postgres://user:pw@`), URL 쿼리 토큰, 개인 키 블록, 이메일, 주민등록번호, 휴대전화 번호, 카드 번호, `password = "..."`·`DB_PASSWORD=...`·`password: ...` 같은 비밀 값 대입 (코드 참조인 `self.api_key = api_key` 는 유지) |
-| ③ 전송량 제한 | **최대 10개 파일, 최대 200줄** | 줄 예산은 파일마다 공평하게 나눔(작은 파일은 전부, 큰 파일들은 나머지를 똑같이). 생략된 파일도 이름과 `+/-` 통계는 전송 (`<changed_files>` 목록은 최대 50개, 나머지는 `... 외 N개 파일` 합계 한 줄) |
+| ③ 전송량 제한 | 기본 **최대 10개 파일, 최대 200줄** (정책으로 조정 가능) | 줄 예산은 파일마다 공평하게 나눔(작은 파일은 전부, 큰 파일들은 나머지를 똑같이). 생략된 파일도 이름과 `+/-` 통계는 전송 (`<changed_files>` 목록은 최대 50개, 나머지는 `... 외 N개 파일` 합계 한 줄) |
 | 추가 | `--context` 텍스트와 브랜치 이름 | diff 와 같은 규칙으로 마스킹 |
 | 추가 | AI 응답 | 결과에 민감정보 패턴이 섞여 나오면 다시 가리고 `[경고]` 표시 |
 
@@ -418,6 +435,98 @@ $ python main.py commit --dry-run --no-safe-mode   # safe-mode OFF
 ```
 
 > 정규식 마스킹은 완벽하지 않습니다. 민감한 저장소에서는 먼저 `--dry-run` 으로 실제 전송 내용을 확인하고, 비밀 값은 애초에 `.gitignore` 로 커밋 대상에서 빼 두세요.
+
+### safe-mode 정책 바꾸기 (마스킹 규칙 추가 · 전송 한도 조정)
+
+내장 규칙은 범용 형식(API Key, 이메일 등)만 압니다. 사번·사내 도메인·사내 토큰처럼 **팀마다 다른 민감정보**는 정규식 규칙으로 추가하고, 저장소 성격에 맞게 **전송 한도(파일 수/줄 수)** 를 조정할 수 있습니다.
+
+정책은 아래 순서로 합쳐지며, 뒤의 것이 앞의 값을 덮어씁니다.
+
+| 순서 | 출처 | 예 |
+|---|---|---|
+| 1 | 기본값 (`gitgen/config.py`) | 10개 파일 · 200줄 · 파일당 제한 없음 · 내장 규칙 21개 · 내장 제외 패턴 31개 |
+| 2 | 대상 프로젝트 루트의 `.ai-gitgen.json` (또는 `--safe-mode-config`) | 팀 공통 정책을 저장소에 커밋해 공유 |
+| 3 | CLI 옵션 (`--max-files` 등) | 이번 실행에만 임시로 조정 |
+
+**`.ai-gitgen.json` 예시** ([docs/bonus3/ai-gitgen.sample.json](docs/bonus3/ai-gitgen.sample.json))
+
+```json
+{
+  "safe_mode": {
+    "max_files": 5,
+    "max_lines": 120,
+    "max_lines_per_file": 30,
+    "exclude_files": ["*.sql", "db/"],
+    "mask_rules": [
+      {"name": "EMPLOYEE_ID", "pattern": "\\bEMP-\\d{6}\\b", "label": "EMPLOYEE"},
+      {"name": "INTERNAL_HOST", "pattern": "\\b[\\w-]+\\.corp\\.example\\.com\\b"},
+      {"name": "SHOP_TOKEN", "pattern": "\\bshoptok_[0-9a-f]{12}\\b", "label": "TOKEN"},
+      {"name": "CODENAME", "pattern": "(?i)\\bfalcon-x\\b"},
+      {"name": "LICENSE_SERIAL", "pattern": "LICENSE_SERIAL = \"(?P<value>[A-Z0-9-]{12,})\"", "label": "LICENSE"}
+    ]
+  }
+}
+```
+
+| 항목 | 허용 값 | 의미 |
+|---|---|---|
+| `max_files` | 정수 1~1000 (기본 10) | 내용을 보낼 최대 파일 수. 넘는 파일은 이름·통계만 전송 |
+| `max_lines` | 정수 1~20000 (기본 200) | 보낼 diff 전체 줄 수. 파일마다 공평하게 나눔 |
+| `max_lines_per_file` | 정수 0~20000 (기본 0 = 제한 없음) | 파일 하나가 받을 수 있는 최대 줄 수. 큰 파일 하나가 예산을 독차지하지 못하게 함 |
+| `exclude_files` | glob 문자열 배열 | 내용을 보내지 않을 파일. gitignore 와 비슷하게 `*.sql`(어느 폴더든), `db/`(폴더 전체), `db/*.sql`(루트 기준), `**/*.sql` 를 쓸 수 있음. 이름이 바뀐 파일은 원래 경로도 검사 |
+| `disable_rules` | 내장 규칙 이름 배열 | 오탐이 많은 내장 규칙 끄기 (이름은 `python main.py policy` 로 확인) |
+| `mask_rules` | `{name, pattern, label?}` 배열 | 정규식 마스킹 규칙. `(?P<value>...)` 그룹이 있으면 그 부분만 가림, `(?i)` 로 대소문자 무시. 가린 자리는 `[MASKED:label]` (label 생략 시 name) |
+
+- **규칙 적용 순서**: 내장 규칙 → 사용자 규칙. 사용자 규칙이 먼저 일부를 바꿔 버리면 내장 규칙이 원래 잡던 비밀값을 놓칠 수 있어서(예: `ACME` 를 가리는 규칙 때문에 `ACME_DB_PASSWORD=...` 의 값이 노출), 사용자 규칙은 **기존 보호를 줄이지 않고 더하기만** 합니다.
+- **규칙이 보는 텍스트**: diff 본문(줄마다 `+`, `-`, 공백으로 시작하는 여러 줄)입니다. 그래서 `^`, `$` 는 `(?m)` 없이 쓸 수 없습니다(줄 단위로 쓰려면 `(?m)^\+...`).
+- **목록 합치기**: 숫자 항목은 CLI 옵션이 설정 파일 값을 덮어쓰고, 목록 항목(`mask_rules`, `exclude_files`)은 CLI 옵션이 설정 파일 값에 **추가**됩니다.
+- **정책 파일 자체**(`.ai-gitgen.json`)는 내용을 보내지 않습니다. 정규식 원문에 가리려는 값(사내 도메인, 코드명)이 그대로 들어 있기 때문입니다.
+- 잘못된 설정(알 수 없는 항목, `safe_mode` 섹션 밖에 쓴 항목, 범위를 벗어난 숫자, 정규식 오류, 길이 0 과 일치하는 정규식, 내장 규칙과 같은 이름, 허용되지 않는 label 등)은 실행 전에 원인과 함께 알려 주고 종료 코드 2로 끝납니다. 이번 변경과 일치하는 파일이 없는 제외 패턴은 오타일 수 있어 로그로 알려 줍니다.
+- safe-mode 를 끄면(`--no-safe-mode`) 정책은 적용되지 않고 경고가 출력됩니다.
+
+**적용될 정책 확인** — `policy` 명령은 API 를 호출하지 않고, 숫자 기준과 규칙 목록, 각 값의 출처를 보여 줍니다. `--check` 로 특정 문자열이 어떻게 가려지는지 바로 시험할 수 있습니다.
+
+```
+$ python main.py policy --safe-mode-config docs/bonus3/ai-gitgen.sample.json --check "담당 EMP-204817 / 프로젝트 FALCON-X"
+====================== safe-mode 정책 ======================
+설정 파일 : docs/bonus3/ai-gitgen.sample.json
+
+[전송 제한]  safe-mode ON 일 때 외부 API 로 보내는 diff 의 양
+  최대 파일 수      : 5개  (설정 파일, 기본 10개)
+  전체 최대 줄 수   : 120줄  (설정 파일, 기본 200줄)
+  파일당 최대 줄 수 : 30줄  (설정 파일, 기본 제한 없음)
+  전송 하드 상한    : 150,000자  (고정, safe-mode OFF 에도 적용)
+
+[민감 파일 제외]  내용은 보내지 않고 파일명과 +/- 통계만 전송
+  내장 패턴 31개 : .env*, *.env, *.pem, *.key, ... (생략)
+  사용자 패턴 2개 (목록 항목은 설정 파일 + CLI 옵션이 합쳐짐)
+    - *.sql  (설정 파일)
+    - db/  (설정 파일)
+  정책 파일(.ai-gitgen.json) 자체도 내용을 보내지 않음 (가리려는 값이 정규식 원문에 들어 있으므로)
+
+[마스킹 규칙]  위에서부터 순서대로 적용, 가린 자리는 [MASKED:라벨]
+  1) 내장 규칙 21개 (전체 21개)
+     PRIVATE_KEY, ANTHROPIC_KEY, OPENAI_KEY, ... (생략)
+  2) 사용자 규칙 5개 (내장 규칙 다음에 적용 → 기존 보호를 줄이지 않고 추가만 함)
+     1. EMPLOYEE_ID  /\bEMP-\d{6}\b/  → 일치 부분 전체 [MASKED:EMPLOYEE]  (설정 파일)
+     2. INTERNAL_HOST  /\b[\w-]+\.corp\.example\.com\b/  → 일치 부분 전체 [MASKED:INTERNAL_HOST]  (설정 파일)
+     3. SHOP_TOKEN  /\bshoptok_[0-9a-f]{12}\b/  → 일치 부분 전체 [MASKED:TOKEN]  (설정 파일)
+     4. CODENAME  /(?i)\bfalcon-x\b/  → 일치 부분 전체 [MASKED:CODENAME]  (설정 파일)
+     5. LICENSE_SERIAL  /LICENSE_SERIAL = "(?P<value>[A-Z0-9-]{12,})"/  → value 그룹만 [MASKED:LICENSE]  (설정 파일)
+
+================= 정책 적용 확인 (--check) =================
+입력 : 담당 EMP-204817 / 프로젝트 FALCON-X
+결과 : 담당 [MASKED:EMPLOYEE] / 프로젝트 [MASKED:CODENAME]
+적용 : EMPLOYEE_ID 1, CODENAME 1  (diff 의 추가 줄 '+...' 로 넣어 실제 전송과 같은 조건에서 확인)
+```
+
+정책을 지정하지 않으면 고도화 전과 **완전히 같은** 내용이 전송됩니다. 같은 변경으로 비교한 결과(가짜 민감정보 13종)는 아래와 같습니다. 자세한 증빙은 [docs/bonus3/README.md](docs/bonus3/README.md)(요약)와 [docs/bonus3/EVIDENCE.md](docs/bonus3/EVIDENCE.md)(자동 생성 상세)에 있습니다.
+
+| 조건 | 민감정보 노출 | 전송 diff |
+|---|---|---|
+| safe-mode OFF | 13/13 | 335줄 |
+| ON · 기본 정책 (= 고도화 전) | 7/13 | 200줄 |
+| ON · 사용자 정책 (`ai-gitgen.sample.json`) | **0/13** | 120줄 |
 
 ## 6. 비용과 요청 횟수
 
@@ -554,14 +663,15 @@ content-type: application/json
 
 ```
 ai-gitgen/
-├── main.py                 # 실행 파일: python main.py commit | pr | all
+├── main.py                 # 실행 파일: python main.py commit | pr | all | policy
 ├── requirements.txt        # requests, python-dotenv
 ├── .env.example            # API Key 설정 예시 (복사해서 .env 로 사용, .env 는 커밋 제외)
 ├── gitgen/
 │   ├── cli.py              # 옵션 해석, 전체 흐름 연결, 구획 출력
 │   ├── env_loader.py       # .env 파일 → 환경변수(os.environ) 등록
 │   ├── git_collector.py    # git status / git diff 실행·파싱, 명령별 diff 선택
-│   ├── safe_mode.py        # 민감 파일 제외, 패턴 마스킹, 10개 파일·200줄 제한
+│   ├── safe_mode.py        # 민감 파일 제외, 패턴 마스킹, 파일·줄 수 전송 제한
+│   ├── safe_policy.py      # safe-mode 정책: .ai-gitgen.json/옵션 → 사용자 정규식 규칙·전송 한도
 │   ├── prompts.py          # system/user 프롬프트, JSON 스키마
 │   ├── ai_client.py        # Claude Messages API REST 호출, 응답·예외 처리
 │   ├── formatter.py        # 커밋/PR 텍스트 조립, 길이·템플릿·표현 검증 및 후처리
@@ -574,14 +684,18 @@ ai-gitgen/
     ├── test_ai_client.py
     ├── test_cli.py         # 임시 Git 저장소 + API mock 으로 end-to-end
     ├── test_env_loader.py  # .env 로딩, OS 환경변수 우선순위, 안내 문구
+    ├── test_safe_policy.py # safe-mode 정책: 규칙 추가, 전송 한도, 설정 검증, 하위 호환
     └── test_review_fixes.py  # 코드 리뷰에서 찾은 문제의 회귀 테스트
+scripts/
+└── bonus3_evidence.py      # 보너스 3 증빙 생성 (OFF / 기본 / 사용자 정책 / 고도화 전 비교)
+docs/bonus3/                # 보너스 3 증빙 (README.md, EVIDENCE.md, 정책 예시, 원본 출력)
 ```
 
 | 단계 | 모듈 | 입력 → 출력 | 테스트 방법 |
 |---|---|---|---|
 | 설정 | `env_loader` | `.env` 파일 → 환경변수 | 임시 `.env` 로 등록·우선순위·BOM·인코딩 오류 확인 |
 | 수집 | `git_collector` | git 출력 텍스트 → `GitStatus`, `FileDiff[]` | 파싱은 순수 함수로 문자열 입력 테스트, 선택 로직은 임시 Git 저장소로 테스트 |
-| 보호 | `safe_mode` | `FileDiff[]` → 전송용 diff + 마스킹 보고서 | 규칙별 샘플, 오탐 사례, 긴 줄 성능 |
+| 보호 | `safe_mode` + `safe_policy` | `FileDiff[]` + 정책 → 전송용 diff + 마스킹 보고서 | 규칙별 샘플, 오탐 사례, 긴 줄 성능, 정책 설정 검증·우선순위·전송 한도 |
 | 호출 | `ai_client` | payload → `AIResponse` / `AIClientError` | `post=` 에 가짜 함수를 넣어 상태 코드·예외·재시도 횟수 검증 |
 | 후처리 | `formatter` | AI JSON → 커밋/PR 텍스트 + 검증 결과 | 규칙 위반 입력을 넣어 보정 결과 확인 |
 | 전체 | `cli` | 명령행 → 터미널 출력 | `call_messages` 를 mock 으로 바꿔 end-to-end |
