@@ -268,6 +268,8 @@ def is_sensitive_file(path: str) -> bool:
     name = normalized.rsplit("/", 1)[-1]
     if name.endswith(SENSITIVE_ALLOWED_SUFFIXES):
         return False
+    if name.startswith(".env"):  # .env, .env.local, .env~, ".env copy" 등 복사본까지
+        return True
     if any(fnmatch.fnmatch(name, pattern) for pattern in SENSITIVE_FILE_PATTERNS):
         return True
     return any(
