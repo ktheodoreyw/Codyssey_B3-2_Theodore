@@ -176,6 +176,13 @@ class CliTestBase(unittest.TestCase):
         for name in ("AI_API_KEY",) + _GIT_ENV_DROP:
             os.environ.pop(name, None)
 
+        # 프로젝트 폴더의 실제 .env(진짜 API Key)를 읽지 않도록, .env 위치를 임시 폴더로 바꾼다.
+        # (파일을 만들지 않으면 '.env 없음' 상태로 동작한다)
+        self.env_file = os.path.join(self.tmp, ".env")
+        env_file_patch = mock.patch("gitgen.config.ENV_FILE", self.env_file)
+        env_file_patch.start()
+        self.addCleanup(env_file_patch.stop)
+
         call_patch = mock.patch("gitgen.cli.call_messages")
         self.call_mock = call_patch.start()
         self.addCleanup(call_patch.stop)

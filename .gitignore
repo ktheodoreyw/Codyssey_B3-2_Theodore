@@ -2,10 +2,10 @@
 과제설명서.pdf
 *.pdf
 
-# 비밀 값
-.env
-.env.*
+# 비밀 값: .env 와 그 복사본(.env.bak, .env~, ".env copy" 등) 모두 제외, 예시 파일만 허용
+.env*
 !.env.example
+*~
 
 # Python
 __pycache__/
