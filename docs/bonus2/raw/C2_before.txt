@@ -1,0 +1,38 @@
+$ python main.py commit --convention default
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 현재 브랜치: feature/SIUUU1-members-json
+[INFO] Git status 수집 완료: 4개 파일 변경 감지 (staged 4, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 218줄, 4개 파일 (+99/-78) - 스테이징된 변경 (git diff --cached)
+[INFO] safe-mode ON: 마스킹 0건, 전송 diff 200줄 / 원본 218줄
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 4,765 / 출력 215 | 6.4초 | 예상 비용 $0.0292
+[DONE] 커밋 메시지 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : feature/SIUUU1-members-json
+비교 대상 : 스테이징된 변경 (git diff --cached)
+변경 파일 : 4개 (+99 / -78)
+  A  src/data/members.json  (+32/-0)
+  M  src/index.html  (+3/-3)
+  D  src/js/members.js  (+0/-75)  ※ diff 81줄 중 66줄만 전송
+  A  src/js/render.js  (+64/-0)  ※ diff 70줄 중 67줄만 전송
+AI 요약   : 팀원 데이터를 JS 하드코딩(members.js)에서 별도 JSON 파일(members.json)로 분리하고, 렌더링 로직을 fetch 기반의 render.js로 교체했다.
+
+--- Commit Message ---
+refactor: 팀원 데이터를 JSON 파일로 분리하고 fetch 기반 렌더링으로 전환
+
+- members.json: 팀원 데이터를 독립 JSON 파일로 추출
+- render.js: fetch로 JSON을 읽어 카드를 렌더링하도록 members.js 대체
+- index.html: 스크립트 참조를 render.js로 변경하고 주석 갱신
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] 커밋 제목 49자 (권장 50자 이내)
+[OK] 제목 형식 'type(scope): subject' 준수
+[OK] 본문 핵심 변경 불릿 3개
+[OK] 변경 파일 언급 4개 (members.json, index.html, members.js)
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.

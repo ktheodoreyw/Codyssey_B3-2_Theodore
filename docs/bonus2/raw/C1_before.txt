@@ -1,0 +1,34 @@
+$ python main.py commit --convention default
+
+[stderr]
+[INFO] .env 파일에서 환경변수 1개를 불러왔습니다 (ANTHROPIC_API_KEY)
+[INFO] 현재 브랜치: feature/ktheodoreyw-history-cleanup
+[INFO] Git status 수집 완료: 1개 파일 변경 감지 (staged 1, unstaged 0, untracked 0)
+[INFO] Git diff 수집 완료: 21줄, 1개 파일 (+12/-1) - 스테이징된 변경 (git diff --cached)
+[INFO] safe-mode ON: 마스킹 0건, 전송 diff 21줄 / 원본 21줄
+[INFO] AI API 요청 중... (model=claude-opus-4-6, temperature=0.2, max_tokens=2048, effort=medium)
+[INFO] AI API 호출 횟수: 1회 | 토큰 입력 2,291 / 출력 159 | 5.2초 | 예상 비용 $0.0154
+[DONE] 커밋 메시지 생성 완료
+
+[stdout]
+
+======================== 변경 요약 ========================
+브랜치    : feature/ktheodoreyw-history-cleanup
+비교 대상 : 스테이징된 변경 (git diff --cached)
+변경 파일 : 1개 (+12 / -1)
+  M  docs/CONTRIBUTING.md  (+12/-1)
+AI 요약   : CONTRIBUTING.md에 히스토리 정리(git rebase -i) 기준을 다루는 6장 섹션을 추가했다.
+
+--- Commit Message ---
+docs: 히스토리 정리 가이드라인 섹션 추가
+
+- docs/CONTRIBUTING.md: squash, fixup, reword 등 rebase -i 사용 기준 및 백업·검증 절차 안내 추가
+- docs/CONTRIBUTING.md: 기존 주의 문구에 6장 참조 링크 추가
+------------------------------------------------------------
+
+======================== 검증 결과 ========================
+[OK] 커밋 제목 25자 (권장 50자 이내)
+[OK] 제목 형식 'type(scope): subject' 준수
+[OK] 본문 핵심 변경 불릿 2개
+[OK] 변경 파일 언급 1개 (CONTRIBUTING.md)
+※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.
