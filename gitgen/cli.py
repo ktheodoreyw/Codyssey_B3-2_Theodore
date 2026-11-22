@@ -33,7 +33,17 @@ from .ai_client import (
     supports_temperature,
 )
 from .env_loader import EnvLoadResult, load_env_file
-from .formatter import WARN, Check, build_commit_message, build_pr_draft, clean_line
+from .convention import Convention, ConventionError, describe as describe_convention, load_convention
+from .formatter import (
+    OK,
+    WARN,
+    Check,
+    build_commit_message,
+    build_commit_message_conv,
+    build_pr_draft,
+    build_pr_draft_conv,
+    clean_line,
+)
 from .git_collector import (
     DiffResult,
     GitError,
@@ -179,16 +189,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="내용을 보내지 않을 파일 패턴. 여러 번 지정 가능. 예) --exclude-file \"*.sql\"",
     )
 
-    sub = parser.add_subparsers(dest="command", metavar="{commit,pr,all,policy}")
+    # 팀 컨벤션 옵션: commit / pr / all / convention 공통 (보너스 2)
+    conv_opts = argparse.ArgumentParser(add_help=False)
+    conv = conv_opts.add_argument_group("팀 컨벤션 옵션 (설정 파일 .ai-gitgen.json 의 convention 보다 우선)")
+    conv.add_argument(
+        "--convention",
+        metavar="NAME|PATH",
+        help="커밋/PR 컨벤션: default(기본), 프리셋 이름(예: b2-2), 또는 JSON 파일 경로 "
+        "(기본: 현재 폴더 .ai-gitgen.json 의 convention, 없으면 default)",
+    )
+    gen_opts = argparse.ArgumentParser(add_help=False)
+    gen_opts.add_argument_group("팀 컨벤션 옵션").add_argument(
+        "--issue",
+        type=_positive_int,
+        metavar="N",
+        help="PR 본문 '관련 이슈' 에 넣을 이슈 번호 (예: --issue 26 → Closes #26)",
+    )
+
+    sub = parser.add_subparsers(dest="command", metavar="{commit,pr,all,policy,convention}")
     sub.add_parser(
         "commit",
-        parents=[common, policy_opts],
+        parents=[common, policy_opts, conv_opts],
         help="커밋 메시지 생성",
         description="스테이징된 변경(없으면 작업 트리 변경)으로 커밋 메시지를 생성합니다.",
     )
     pr = sub.add_parser(
         "pr",
-        parents=[common, policy_opts],
+        parents=[common, policy_opts, conv_opts, gen_opts],
         help="PR 제목/본문 초안 생성",
         description="기준 브랜치 대비 커밋된 변경(없으면 작업 트리 변경)으로 PR 제목/본문 초안을 생성합니다.",
     )
@@ -205,9 +232,15 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="TEXT",
         help="이 텍스트에 정책을 적용한 결과(마스킹 전/후)를 보여 줍니다. 여러 번 지정 가능.",
     )
+    sub.add_parser(
+        "convention",
+        parents=[conv_opts],
+        help="현재 적용되는 팀 커밋/PR 컨벤션 보기 (API 호출 없음)",
+        description="커밋 형식·타입·PR 템플릿(섹션 순서, 체크리스트)·브랜치 규칙 등 적용될 컨벤션을 출력합니다.",
+    )
     all_ = sub.add_parser(
         "all",
-        parents=[common, policy_opts],
+        parents=[common, policy_opts, conv_opts, gen_opts],
         help="변경 요약 + 커밋 메시지 + PR 초안을 한 번에 생성 (API 1회 호출)",
         description=(
             "현재 변경(스테이징된 변경 → 작업 트리 변경 순, 둘 다 없으면 기준 브랜치 대비 커밋된 변경)으로 "
@@ -231,9 +264,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         if args.command == "policy":
             return run_policy(args)
+        if args.command == "convention":
+            return run_convention(args)
         return run(args)
     except PolicyError as exc:
         console.error(f"safe-mode 정책 설정 오류: {exc}")
+        return EXIT_USAGE
+    except ConventionError as exc:
+        console.error(f"팀 컨벤션 설정 오류: {exc}")
         return EXIT_USAGE
     except GitError as exc:
         console.error(str(exc))
@@ -287,6 +325,13 @@ def run(args: argparse.Namespace) -> int:
     policy = _load_policy(args)
     if not args.safe_mode and not policy.is_default():
         console.warn("safe-mode 가 꺼져 있어 safe-mode 정책(설정 파일/정책 옵션)은 적용되지 않습니다.")
+    # 팀 컨벤션: --convention ← .ai-gitgen.json 의 convention ← 기본 (보너스 2)
+    convention = load_convention(args.convention)
+    if not convention.is_default:
+        console.info(f"팀 컨벤션: {convention.name} ({convention.source})")
+    issue = getattr(args, "issue", None)
+    if issue and not convention.pr.issue_heading:
+        console.warn("--issue 는 '관련 이슈' 섹션이 있는 팀 컨벤션의 PR 초안에만 쓰입니다. (현재 컨벤션에는 없음)")
 
     # [2] Git 변경 사항 수집 ---------------------------------------------------
     ensure_repo_root()
@@ -360,16 +405,16 @@ def run(args: argparse.Namespace) -> int:
 
     payload = build_payload(
         model=args.model,
-        system=system_prompt_for(kind),
+        system=system_prompt_for(kind, convention),
         user_content=user_prompt,
         max_tokens=args.max_tokens,
         temperature=temperature,
         effort=effort,
-        schema=schema_for(kind),
+        schema=schema_for(kind, convention),
     )
 
     if args.dry_run:
-        _print_dry_run(payload, user_prompt)
+        _print_dry_run(payload, user_prompt, convention)
         console.done("dry-run 완료: API 를 호출하지 않았습니다. (AI API 호출 횟수: 0회)")
         return EXIT_OK
 
@@ -400,8 +445,13 @@ def run(args: argparse.Namespace) -> int:
         if masked:
             output_checks.append(Check(WARN, f"결과에 민감정보 의심 패턴 {masked}건이 있어 가렸습니다 - 확인 필요"))
 
-    summary, texts, checks = _build_outputs(kind, data, [f.path for f in diff.files])
+    summary, texts, checks = _build_outputs(kind, data, [f.path for f in diff.files], convention, issue)
     checks.extend(output_checks)
+    branch_ok = convention.branch_ok(status.branch)
+    if branch_ok is True:
+        checks.append(Check(OK, f"브랜치 이름 '{status.branch}' 이(가) 팀 규칙과 일치"))
+    elif branch_ok is False:
+        checks.append(Check(WARN, f"브랜치 이름 '{status.branch}' 이(가) 팀 규칙({convention.branch_pattern})과 다름"))
 
     console.done(f"{label} 생성 완료")
     if args.plain and kind == "all":
@@ -426,21 +476,35 @@ def _select_diff(kind: str, status: GitStatus, base: Optional[str]) -> DiffResul
 
 
 def _build_outputs(
-    kind: str, data: dict, changed_paths: List[str]
+    kind: str,
+    data: dict,
+    changed_paths: List[str],
+    convention: Optional[Convention] = None,
+    issue: Optional[int] = None,
 ) -> Tuple[str, Dict[str, str], List[Check]]:
-    """AI 응답(JSON)을 검증·후처리해 (요약, {구획 제목: 텍스트}, 검증 결과)로 만든다."""
+    """AI 응답(JSON)을 검증·후처리해 (요약, {구획 제목: 텍스트}, 검증 결과)로 만든다.
+
+    팀 컨벤션이 있으면 그 컨벤션의 형식·템플릿으로 조립하고 검증한다(보너스 2).
+    """
     texts: Dict[str, str] = {}
     checks: List[Check] = []
+    team = convention is not None and not convention.is_default
     summary = str(data.get("summary") or "")
     if kind in ("commit", "all"):
         commit_data = data if kind == "commit" else _sub(data, "commit")
-        message, commit_checks = build_commit_message(commit_data, changed_paths)
+        if team:
+            message, commit_checks = build_commit_message_conv(commit_data, changed_paths, convention)
+        else:
+            message, commit_checks = build_commit_message(commit_data, changed_paths)
         texts["Commit Message"] = message.text
         checks.extend(commit_checks)
         summary = summary or message.summary
     if kind in ("pr", "all"):
         pr_data = data if kind == "pr" else _sub(data, "pr")
-        draft, pr_checks = build_pr_draft(pr_data, changed_paths)
+        if team:
+            draft, pr_checks = build_pr_draft_conv(pr_data, changed_paths, convention, issue)
+        else:
+            draft, pr_checks = build_pr_draft(pr_data, changed_paths)
         texts["PR Title"] = draft.title
         texts["PR Body"] = draft.body
         checks.extend(pr_checks)
@@ -465,6 +529,18 @@ def _load_policy(args: argparse.Namespace) -> SafeModePolicy:
         mask_patterns=args.mask_pattern,
         exclude_files=args.exclude_file,
     )
+
+
+def run_convention(args: argparse.Namespace) -> int:
+    """`python main.py convention`: 적용될 팀 컨벤션을 문서처럼 보여 준다. Git/API 와 무관하다."""
+    conv = load_convention(args.convention)
+    console.out()
+    console.header("커밋/PR 컨벤션")
+    for line in describe_convention(conv):
+        console.out(line)
+    console.out()
+    console.flush()
+    return EXIT_OK
 
 
 def run_policy(args: argparse.Namespace) -> int:
@@ -657,11 +733,17 @@ def _print_result(
     console.out("※ 생성된 문구는 초안입니다. 내용을 검토한 뒤 적용하세요.")
 
 
-def _print_dry_run(payload: dict, user_prompt: str) -> None:
+def _print_dry_run(payload: dict, user_prompt: str, convention: Optional[Convention] = None) -> None:
     params = {k: v for k, v in payload.items() if k not in ("system", "messages", "output_config")}
     output_config = dict(payload.get("output_config") or {})
+    team_schema = None
     if "format" in output_config:
-        output_config["format"] = "json_schema (prompts.py 의 COMMIT_SCHEMA / PR_SCHEMA / ALL_SCHEMA)"
+        if convention is not None and not convention.is_default:
+            # 팀 컨벤션은 스키마도 바뀌므로(type enum, scope, PR 섹션 키) 실제로 보낼 스키마를 그대로 보여 준다
+            team_schema = (output_config["format"] or {}).get("schema")
+            output_config["format"] = "json_schema (팀 컨벤션 스키마: 아래 Response Schema)"
+        else:
+            output_config["format"] = "json_schema (prompts.py 의 COMMIT_SCHEMA / PR_SCHEMA / ALL_SCHEMA)"
     params["output_config"] = output_config
     console.out()
     console.header("요청 미리보기 (dry-run)")
@@ -670,3 +752,6 @@ def _print_dry_run(payload: dict, user_prompt: str) -> None:
     console.block("System Prompt", payload["system"])
     console.out()
     console.block("User Prompt", user_prompt)
+    if team_schema is not None:
+        console.out()
+        console.block("Response Schema", json.dumps(team_schema, ensure_ascii=False, indent=2))
