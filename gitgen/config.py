@@ -6,12 +6,18 @@ CLI 옵션의 기본값과 safe-mode 정책, API 접속 정보를 한 곳에 모
 
 from __future__ import annotations
 
+import os
+
 # ---------------------------------------------------------------------------
 # API Key 환경변수
 # ---------------------------------------------------------------------------
 # 앞에 있는 이름부터 차례로 확인한다. ANTHROPIC_API_KEY 는 Anthropic 공식 이름,
 # AI_API_KEY 는 과제 설명서 예시에서 사용한 이름이다. 둘 다 지원한다.
 API_KEY_ENV_VARS = ("ANTHROPIC_API_KEY", "AI_API_KEY")
+
+# 실행 시 환경변수로 불러올 .env 파일 위치: ai-gitgen 폴더(main.py 가 있는 곳)
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV_FILE = os.path.join(PROJECT_DIR, ".env")
 
 # ---------------------------------------------------------------------------
 # Claude Messages API (REST)
